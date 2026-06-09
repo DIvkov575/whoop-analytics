@@ -41,7 +41,7 @@ class WhoopClient:
             body = response.json()
 
             all_records.extend(body.get("records", []))
-            next_token = body.get("next_token")
+            next_token = body.get("next_token") or body.get("nextToken")
 
             if not next_token:
                 break

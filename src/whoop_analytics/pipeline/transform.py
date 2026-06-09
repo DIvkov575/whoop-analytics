@@ -33,8 +33,10 @@ def _load_sleep(raw_dir: Path) -> pd.DataFrame:
 
     df["end"] = pd.to_datetime(df["end"])
     df["date"] = df["end"].dt.normalize()
-    df = df.set_index("date")
     df = df.drop(columns=["id", "start", "end", "nap"])
+    df = df.sort_values("total_sleep_minutes", ascending=False)
+    df = df.set_index("date")
+    df = df[~df.index.duplicated(keep="first")]
 
     return df
 

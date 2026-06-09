@@ -34,6 +34,7 @@ def main(argv: list[str] | None = None) -> int:
     full_parser.add_argument("--days", type=int, default=180)
     full_parser.add_argument("--target", default="brain_fog")
     full_parser.add_argument("--max-lag", type=int, default=3)
+    full_parser.add_argument("--alpha", type=float, default=0.05, help="Significance level")
 
     args = parser.parse_args(argv)
 
@@ -50,7 +51,7 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "report":
         return _cmd_report(settings)
     elif args.command == "run":
-        return _cmd_run(settings, args.days, args.target, args.max_lag)
+        return _cmd_run(settings, args.days, args.target, args.max_lag, args.alpha)
 
     return 0
 
@@ -104,7 +105,7 @@ def _cmd_report(settings: Settings) -> int:
     return 0
 
 
-def _cmd_run(settings: Settings, days: int, target: str, max_lag: int) -> int:
+def _cmd_run(settings: Settings, days: int, target: str, max_lag: int, alpha: float = 0.05) -> int:
     ret = _cmd_ingest(settings, days)
     if ret != 0:
         return ret
@@ -126,7 +127,7 @@ def _cmd_run(settings: Settings, days: int, target: str, max_lag: int) -> int:
         return 1
 
     print(f"\nRunning causal discovery (n={len(df)}, target={target}, max_lag={max_lag})...")
-    discovery = CausalDiscovery(max_lag=max_lag, significance_level=0.05)
+    discovery = CausalDiscovery(max_lag=max_lag, significance_level=alpha)
     disc_result = discovery.run(df, target=target)
 
     print(f"Found {len(disc_result.links)} causal links.")
@@ -136,8 +137,9 @@ def _cmd_run(settings: Settings, days: int, target: str, max_lag: int) -> int:
         print("\nEstimating causal effects...")
         estimator = EffectEstimator()
         for link in disc_result.links:
-            other_sources = [l.source for l in disc_result.links if l.source != link.source]
-            effect = estimator.estimate(df=df, link=link, common_causes=other_sources)
+            if link.source == target:
+                continue
+            effect = estimator.estimate(df=df, link=link, common_causes=[])
             effects.append(effect)
 
     report = AnalysisReport(
