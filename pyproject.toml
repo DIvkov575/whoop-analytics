@@ -13,6 +13,8 @@ dependencies = [
     "networkx>=3.0",
     "scipy>=1.10",
     "pyarrow>=14.0",
+    "streamlit>=1.30",
+    "plotly>=5.18",
 ]
 
 [project.optional-dependencies]

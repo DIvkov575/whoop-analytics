@@ -36,6 +36,9 @@ def main(argv: list[str] | None = None) -> int:
     full_parser.add_argument("--max-lag", type=int, default=3)
     full_parser.add_argument("--alpha", type=float, default=0.05, help="Significance level")
 
+    dashboard_parser = subparsers.add_parser("dashboard", help="Launch interactive dashboard")
+    dashboard_parser.add_argument("--port", type=int, default=8501, help="Port to serve on")
+
     args = parser.parse_args(argv)
 
     if args.command is None:
@@ -52,6 +55,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_report(settings)
     elif args.command == "run":
         return _cmd_run(settings, args.days, args.target, args.max_lag, args.alpha)
+    elif args.command == "dashboard":
+        return _cmd_dashboard(args.port)
 
     return 0
 
@@ -156,6 +161,16 @@ def _cmd_run(settings: Settings, days: int, target: str, max_lag: int, alpha: fl
     generator.save(report, report_path)
     print(f"\nReport saved to: {report_path}")
 
+    return 0
+
+
+def _cmd_dashboard(port: int) -> int:
+    import subprocess
+    app_path = Path(__file__).parent / "dashboard" / "app.py"
+    subprocess.run(
+        ["streamlit", "run", str(app_path), "--server.port", str(port)],
+        check=True,
+    )
     return 0
 
 
