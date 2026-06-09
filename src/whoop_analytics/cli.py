@@ -36,11 +36,18 @@ def main(argv: list[str] | None = None) -> int:
     full_parser.add_argument("--max-lag", type=int, default=3)
     full_parser.add_argument("--alpha", type=float, default=0.05, help="Significance level")
 
+    web_parser = subparsers.add_parser("web", help="Launch web app")
+    web_parser.add_argument("--port", type=int, default=8000)
+    web_parser.add_argument("--host", default="0.0.0.0")
+
     args = parser.parse_args(argv)
 
     if args.command is None:
         parser.print_help()
         return 0
+
+    if args.command == "web":
+        return _cmd_web(args.host, args.port)
 
     settings = Settings.from_env()
 
@@ -156,6 +163,12 @@ def _cmd_run(settings: Settings, days: int, target: str, max_lag: int, alpha: fl
     generator.save(report, report_path)
     print(f"\nReport saved to: {report_path}")
 
+    return 0
+
+
+def _cmd_web(host: str, port: int) -> int:
+    import uvicorn
+    uvicorn.run("whoop_analytics.web.app:app", host=host, port=port, reload=False)
     return 0
 
 

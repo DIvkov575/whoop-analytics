@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Results - Whoop Causal Analytics</title>
+<script src="https://cdn.plot.ly/plotly-2.35.0.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f0f23; color: #e0e0e0; min-height: 100vh; }
+  nav { display: flex; justify-content: space-between; align-items: center; padding: 16px 32px; border-bottom: 1px solid #222; }
+  nav h1 { font-size: 1.2rem; color: #fff; }
+  nav .links a { color: #999; text-decoration: none; font-size: 0.9rem; margin-left: 20px; }
+  nav .links a:hover { color: #fff; }
+  .content { max-width: 1100px; margin: 32px auto; padding: 0 24px; }
+  .meta { color: #666; margin-bottom: 32px; font-size: 0.9rem; }
+  .section { margin-bottom: 48px; }
+  .section h2 { font-size: 1.4rem; color: #fff; margin-bottom: 16px; border-bottom: 1px solid #333; padding-bottom: 8px; }
+  .chart { background: #1a1a2e; border-radius: 8px; padding: 16px; margin-bottom: 24px; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  th { background: #1a1a2e; color: #aaa; text-align: left; padding: 10px 12px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; }
+  td { padding: 10px 12px; border-top: 1px solid #222; }
+  .effect-card { background: #1a1a2e; border-radius: 8px; padding: 20px; margin: 12px 0; }
+  .effect-card.robust { border-left: 4px solid #4CAF50; }
+  .effect-card.uncertain { border-left: 4px solid #F44336; }
+  .effect-card h3 { font-size: 1rem; margin-bottom: 8px; }
+  .effect-card .stats { display: flex; gap: 24px; color: #999; font-size: 0.9rem; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+  .badge.pass { background: #1b3d1b; color: #4CAF50; }
+  .badge.fail { background: #3d1b1b; color: #F44336; }
+  .empty { color: #666; font-style: italic; }
+</style>
+</head>
+<body>
+<nav>
+  <h1>Whoop Causal Analytics</h1>
+  <div class="links">
+    <a href="/">Home</a>
+    <a href="/logout">Disconnect</a>
+  </div>
+</nav>
+<div class="content">
+  <p class="meta">{{ n_obs }} observations &middot; {{ date_start }} to {{ date_end }}</p>
+
+  <div class="section">
+    <h2>Health Metrics</h2>
+    <div class="chart" id="chart-hrv"></div>
+    <div class="chart" id="chart-sleep"></div>
+    <div class="chart" id="chart-fog"></div>
+  </div>
+
+  <div class="section">
+    <h2>Causal Links Discovered</h2>
+    {% if links %}
+    <table>
+      <tr><th>Source</th><th>Target</th><th>Lag</th><th>Strength</th><th>p-value</th></tr>
+      {% for link in links %}
+      <tr>
+        <td>{{ link.source }}</td>
+        <td>{{ link.target }}</td>
+        <td>{{ link.lag }}d</td>
+        <td>{{ "%.3f"|format(link.strength) }}</td>
+        <td>{{ "%.4f"|format(link.p_value) }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <p class="empty">No significant causal links found at p < 0.05.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Effect Estimates</h2>
+    {% if effects %}
+    {% for e in effects %}
+    <div class="effect-card {{ 'robust' if e.refutation_passed else 'uncertain' }}">
+      <h3>{{ e.source }} &rarr; {{ e.target }}
+        {% if e.refutation_passed %}
+        <span class="badge pass">ROBUST</span>
+        {% else %}
+        <span class="badge fail">UNCERTAIN</span>
+        {% endif %}
+      </h3>
+      <div class="stats">
+        <span>ATE: {{ "%.4f"|format(e.ate) }}</span>
+        <span>Refutation p: {{ "%.3f"|format(e.refutation_p_value) if e.refutation_p_value else "N/A" }}</span>
+        <span>Method: {{ e.method }}</span>
+      </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p class="empty">No effects estimated (requires causal links to be found first).</p>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+const plotConfig = {responsive: true, displayModeBar: false};
+const darkLayout = {
+  paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+  font: {color: '#999'}, margin: {t: 32, b: 40, l: 50, r: 20},
+  xaxis: {gridcolor: '#222'}, yaxis: {gridcolor: '#222'},
+};
+
+{% if df is not none and not df.empty %}
+const dates = {{ df.index.strftime('%Y-%m-%d').tolist() | tojson }};
+
+{% if 'hrv_rmssd' in df.columns %}
+Plotly.newPlot('chart-hrv', [
+  {x: dates, y: {{ df['hrv_rmssd'].tolist() | tojson }}, name: 'HRV (rMSSD)', type: 'scatter', line: {color: '#2196F3'}},
+  {% if 'resting_hr' in df.columns %}
+  {x: dates, y: {{ df['resting_hr'].tolist() | tojson }}, name: 'Resting HR', type: 'scatter', yaxis: 'y2', line: {color: '#FF5722'}},
+  {% endif %}
+], {...darkLayout, title: 'HRV & Resting Heart Rate', height: 300,
+    yaxis: {...darkLayout.yaxis, title: 'HRV (ms)'},
+    yaxis2: {title: 'HR (bpm)', overlaying: 'y', side: 'right', gridcolor: '#222', font: {color: '#999'}},
+}, plotConfig);
+{% endif %}
+
+{% if 'sws_minutes' in df.columns %}
+Plotly.newPlot('chart-sleep', [
+  {x: dates, y: {{ df['sws_minutes'].tolist() | tojson }}, name: 'Deep (SWS)', type: 'bar', marker: {color: '#3F51B5'}},
+  {x: dates, y: {{ df['rem_minutes'].tolist() | tojson }}, name: 'REM', type: 'bar', marker: {color: '#9C27B0'}},
+  {x: dates, y: {{ df['light_minutes'].tolist() | tojson }}, name: 'Light', type: 'bar', marker: {color: '#00BCD4'}},
+], {...darkLayout, title: 'Sleep Stages', barmode: 'stack', height: 300,
+    yaxis: {...darkLayout.yaxis, title: 'Minutes'},
+}, plotConfig);
+{% endif %}
+
+{% if 'brain_fog' in df.columns %}
+Plotly.newPlot('chart-fog', [
+  {x: dates, y: {{ df['brain_fog'].tolist() | tojson }}, name: 'Brain Fog', type: 'scatter', mode: 'lines+markers', line: {color: '#F44336'}, marker: {size: 5}},
+], {...darkLayout, title: 'Brain Fog Score', height: 250,
+    yaxis: {...darkLayout.yaxis, title: 'Score'},
+}, plotConfig);
+{% endif %}
+
+{% endif %}
+</script>
+</body>
+</html>
