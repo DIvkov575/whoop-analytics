@@ -39,6 +39,8 @@ def main(argv: list[str] | None = None) -> int:
     dashboard_parser = subparsers.add_parser("dashboard", help="Launch interactive dashboard")
     dashboard_parser.add_argument("--port", type=int, default=8501, help="Port to serve on")
 
+    subparsers.add_parser("setup", help="Interactive setup: OAuth + GitHub secrets")
+
     html_parser = subparsers.add_parser("html", help="Generate static HTML report")
     html_parser.add_argument("--output", type=str, default="docs/index.html", help="Output path")
     html_parser.add_argument("--target", default="brain_fog")
@@ -50,6 +52,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.command is None:
         parser.print_help()
         return 0
+
+    if args.command == "setup":
+        from whoop_analytics.setup import run_setup
+        return run_setup()
 
     settings = Settings.from_env()
 
