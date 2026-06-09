@@ -50,15 +50,23 @@ class TokenManager:
         return self._refresh()
 
     def _refresh(self) -> str:
+        import os
+
         data = self._load_tokens()
-        if data is None:
-            raise ValueError("No tokens stored. Run initial OAuth flow first.")
+        refresh_token = None
+        if data:
+            refresh_token = data["refresh_token"]
+        else:
+            refresh_token = os.environ.get("WHOOP_REFRESH_TOKEN", "")
+
+        if not refresh_token:
+            raise ValueError("No tokens stored and WHOOP_REFRESH_TOKEN env var not set.")
 
         response = httpx.post(
             TOKEN_URL,
             data={
                 "grant_type": "refresh_token",
-                "refresh_token": data["refresh_token"],
+                "refresh_token": refresh_token,
                 "client_id": self.client_id,
                 "client_secret": self.client_secret,
             },
