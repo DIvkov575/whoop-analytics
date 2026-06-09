@@ -36,26 +36,11 @@ def main(argv: list[str] | None = None) -> int:
     full_parser.add_argument("--max-lag", type=int, default=3)
     full_parser.add_argument("--alpha", type=float, default=0.05, help="Significance level")
 
-    dashboard_parser = subparsers.add_parser("dashboard", help="Launch interactive dashboard")
-    dashboard_parser.add_argument("--port", type=int, default=8501, help="Port to serve on")
-
-    subparsers.add_parser("setup", help="Interactive setup: OAuth + GitHub secrets")
-
-    html_parser = subparsers.add_parser("html", help="Generate static HTML report")
-    html_parser.add_argument("--output", type=str, default="docs/index.html", help="Output path")
-    html_parser.add_argument("--target", default="brain_fog")
-    html_parser.add_argument("--max-lag", type=int, default=3)
-    html_parser.add_argument("--alpha", type=float, default=0.05)
-
     args = parser.parse_args(argv)
 
     if args.command is None:
         parser.print_help()
         return 0
-
-    if args.command == "setup":
-        from whoop_analytics.setup import run_setup
-        return run_setup()
 
     settings = Settings.from_env()
 
@@ -67,10 +52,6 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_report(settings)
     elif args.command == "run":
         return _cmd_run(settings, args.days, args.target, args.max_lag, args.alpha)
-    elif args.command == "dashboard":
-        return _cmd_dashboard(args.port)
-    elif args.command == "html":
-        return _cmd_html(settings, args.output, args.target, args.max_lag, args.alpha)
 
     return 0
 
@@ -175,38 +156,6 @@ def _cmd_run(settings: Settings, days: int, target: str, max_lag: int, alpha: fl
     generator.save(report, report_path)
     print(f"\nReport saved to: {report_path}")
 
-    return 0
-
-
-def _cmd_html(settings: Settings, output: str, target: str, max_lag: int, alpha: float) -> int:
-    from whoop_analytics.report.html_report import generate_html_report
-    from whoop_analytics.dashboard.state import run_analysis
-
-    print("Running analysis for HTML report...")
-    state = run_analysis(settings.data_dir, target=target, max_lag=max_lag, alpha=alpha)
-
-    if state.daily_df.empty:
-        print("No data found. Run 'ingest' first.", file=sys.stderr)
-        return 1
-
-    output_path = Path(output)
-    generate_html_report(
-        daily_df=state.daily_df,
-        discovery_result=state.discovery_result,
-        effects=state.effects,
-        output_path=output_path,
-    )
-    print(f"HTML report saved to: {output_path}")
-    return 0
-
-
-def _cmd_dashboard(port: int) -> int:
-    import subprocess
-    app_path = Path(__file__).parent / "dashboard" / "app.py"
-    subprocess.run(
-        ["streamlit", "run", str(app_path), "--server.port", str(port)],
-        check=True,
-    )
     return 0
 
 
