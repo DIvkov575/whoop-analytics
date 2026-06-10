@@ -43,6 +43,9 @@ def _client_secret() -> str:
 
 
 def _redirect_uri(request: Request) -> str:
+    override = os.environ.get("REDIRECT_URI")
+    if override:
+        return override
     return str(request.url_for("oauth_callback"))
 
 
