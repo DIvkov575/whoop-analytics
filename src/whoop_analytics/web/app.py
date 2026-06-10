@@ -71,7 +71,7 @@ async def login(request: Request):
     return RedirectResponse(auth_url)
 
 
-@app.get("/oauth/callback")
+@app.get("/oath/callback")
 async def oauth_callback(request: Request):
     code = request.query_params.get("code")
     if not code:
