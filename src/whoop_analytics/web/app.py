@@ -116,6 +116,17 @@ async def analyze(request: Request):
     if not token:
         return RedirectResponse("/")
 
+    try:
+        return await _do_analyze(request, token)
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        return templates.TemplateResponse(request=request, name="dashboard.html", context={
+            "has_data": False, "error": f"Analysis failed: {e}\n\n{tb}",
+        })
+
+
+async def _do_analyze(request: Request, token: str):
     headers = {"Authorization": f"Bearer {token}"}
     data_dir = Path(request.session.get("data_dir", mkdtemp(prefix="whoop_")))
     request.session["data_dir"] = str(data_dir)
@@ -174,6 +185,8 @@ async def analyze(request: Request):
                 effects.append(effect)
 
     request.session["analysis"] = True
+
+    df = df.fillna(0)
 
     return templates.TemplateResponse(request=request, name="results.html", context={
         "df": df,
