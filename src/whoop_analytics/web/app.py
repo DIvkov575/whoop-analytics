@@ -111,13 +111,13 @@ async def logout(request: Request):
 
 
 @app.post("/analyze", response_class=HTMLResponse)
-async def analyze(request: Request):
+def analyze(request: Request):
     token = request.session.get("access_token")
     if not token:
         return RedirectResponse("/")
 
     try:
-        return await _do_analyze(request, token)
+        return _do_analyze(request, token)
     except Exception as e:
         import traceback
         tb = traceback.format_exc()
@@ -126,7 +126,7 @@ async def analyze(request: Request):
         })
 
 
-async def _do_analyze(request: Request, token: str):
+def _do_analyze(request: Request, token: str):
     headers = {"Authorization": f"Bearer {token}"}
     data_dir = Path(request.session.get("data_dir", mkdtemp(prefix="whoop_")))
     request.session["data_dir"] = str(data_dir)
@@ -134,7 +134,7 @@ async def _do_analyze(request: Request, token: str):
     raw_dir.mkdir(parents=True, exist_ok=True)
 
     end_date = date.today().isoformat()
-    start_date = (date.today() - timedelta(days=180)).isoformat()
+    start_date = (date.today() - timedelta(days=90)).isoformat()
     params = {"start": start_date, "end": end_date}
 
     sleep_records = _fetch_paginated(f"{WHOOP_API_BASE}/v1/activity/sleep", params, headers)
