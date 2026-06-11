@@ -30,6 +30,18 @@ SCOPES = "read:recovery read:cycles read:sleep read:workout read:profile read:bo
 _sessions: dict[str, dict] = {}
 
 app = FastAPI(title="Whoop Causal Analytics")
+
+
+@app.get("/health")
+def health():
+    return {
+        "status": "ok",
+        "client_id_set": bool(os.environ.get("WHOOP_CLIENT_ID")),
+        "client_secret_set": bool(os.environ.get("WHOOP_CLIENT_SECRET")),
+        "redirect_uri": os.environ.get("REDIRECT_URI", "NOT SET"),
+        "session_secret_set": bool(os.environ.get("SESSION_SECRET")),
+        "active_sessions": len(_sessions),
+    }
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.environ.get("SESSION_SECRET", "dev-secret-change-in-production"),
