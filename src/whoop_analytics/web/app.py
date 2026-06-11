@@ -181,23 +181,25 @@ def _do_analyze(request: Request, store: dict, token: str):
 
     debug_info = []
 
-    sleep_records = _fetch_paginated(f"{WHOOP_API_BASE}/v1/activity/sleep", params, headers)
-    debug_info.append(f"sleep: {len(sleep_records)} records")
+    # Verify token works by hitting profile endpoint
+    profile_resp = httpx.get(f"{WHOOP_API_BASE}/v1/user/profile/basic", headers=headers, timeout=10)
+    debug_info.append(f"profile check: {profile_resp.status_code}")
+    if profile_resp.status_code == 401:
+        return templates.TemplateResponse(request=request, name="dashboard.html", context={
+            "has_data": False, "error": "Access token expired. Please reconnect your Whoop account.",
+        })
+
+    sleep_records = _try_fetch(f"{WHOOP_API_BASE}/v1/activity/sleep", params, headers, debug_info, "sleep")
     if sleep_records:
         parsed = [SleepRecord.from_api(r) for r in sleep_records]
         pd.DataFrame([asdict(r) for r in parsed]).to_parquet(raw_dir / "sleep.parquet", index=False)
 
-    recovery_records = _fetch_paginated(f"{WHOOP_API_BASE}/v1/recovery", params, headers)
-    debug_info.append(f"recovery: {len(recovery_records)} records")
+    recovery_records = _try_fetch(f"{WHOOP_API_BASE}/v1/recovery", params, headers, debug_info, "recovery")
     if recovery_records:
         parsed = [RecoveryRecord.from_api(r) for r in recovery_records]
         pd.DataFrame([asdict(r) for r in parsed]).to_parquet(raw_dir / "recovery.parquet", index=False)
 
-    try:
-        journal_records = _fetch_paginated(f"{WHOOP_API_BASE}/v1/journal/entry", params, headers)
-    except ValueError:
-        journal_records = []
-    debug_info.append(f"journal: {len(journal_records)} records")
+    journal_records = _try_fetch(f"{WHOOP_API_BASE}/v1/journal/entry", params, headers, debug_info, "journal")
     if journal_records:
         rows = []
         for entry in journal_records:
@@ -267,6 +269,16 @@ def results(request: Request):
     if not store.get("has_analysis"):
         return RedirectResponse("/")
     return templates.TemplateResponse(request=request, name="dashboard.html", context={"has_data": True})
+
+
+def _try_fetch(url: str, params: dict, headers: dict, debug_info: list, label: str) -> list[dict]:
+    try:
+        records = _fetch_paginated(url, params, headers)
+        debug_info.append(f"{label}: {len(records)} records")
+        return records
+    except ValueError as e:
+        debug_info.append(f"{label}: ERROR - {e}")
+        return []
 
 
 def _fetch_paginated(url: str, params: dict, headers: dict) -> list[dict]:
