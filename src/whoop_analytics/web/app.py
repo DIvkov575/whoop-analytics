@@ -189,12 +189,17 @@ def _do_analyze(request: Request, store: dict, token: str):
             "has_data": False, "error": "Access token expired. Please reconnect your Whoop account.",
         })
 
-    sleep_records = _try_fetch(f"{WHOOP_API_BASE}/v1/activity/sleep/collection", params, headers, debug_info, "sleep")
+    # Try with params first, then without if 404
+    sleep_records = _try_fetch(f"{WHOOP_API_BASE}/v1/activity/sleep/collection", params, headers, debug_info, "sleep(with dates)")
+    if not sleep_records:
+        sleep_records = _try_fetch(f"{WHOOP_API_BASE}/v1/activity/sleep/collection", {}, headers, debug_info, "sleep(no dates)")
     if sleep_records:
         parsed = [SleepRecord.from_api(r) for r in sleep_records]
         pd.DataFrame([asdict(r) for r in parsed]).to_parquet(raw_dir / "sleep.parquet", index=False)
 
-    recovery_records = _try_fetch(f"{WHOOP_API_BASE}/v1/recovery/collection", params, headers, debug_info, "recovery")
+    recovery_records = _try_fetch(f"{WHOOP_API_BASE}/v1/recovery/collection", params, headers, debug_info, "recovery(with dates)")
+    if not recovery_records:
+        recovery_records = _try_fetch(f"{WHOOP_API_BASE}/v1/recovery/collection", {}, headers, debug_info, "recovery(no dates)")
     if recovery_records:
         parsed = [RecoveryRecord.from_api(r) for r in recovery_records]
         pd.DataFrame([asdict(r) for r in parsed]).to_parquet(raw_dir / "recovery.parquet", index=False)
@@ -293,6 +298,8 @@ def _fetch_paginated(url: str, params: dict, headers: dict) -> list[dict]:
         response = httpx.get(url, params=req_params, headers=headers, timeout=30.0)
         if response.status_code == 401:
             raise ValueError(f"Whoop API returned 401 Unauthorized for {url}. Token may be expired.")
+        if response.status_code == 404:
+            raise ValueError(f"Whoop API returned 404 for {url}: {response.text[:200]}")
         if response.status_code != 200:
             raise ValueError(f"Whoop API returned {response.status_code} for {url}: {response.text[:200]}")
 
