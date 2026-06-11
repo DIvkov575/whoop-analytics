@@ -138,7 +138,7 @@ def oauth_callback(request: Request):
     tokens = response.json()
     store = _get_store(request)
     store["access_token"] = tokens["access_token"]
-    store["refresh_token"] = tokens["refresh_token"]
+    store["refresh_token"] = tokens.get("refresh_token", "")
     return RedirectResponse("/")
 
 
