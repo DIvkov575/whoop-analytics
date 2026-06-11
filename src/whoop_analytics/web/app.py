@@ -183,10 +183,23 @@ def _do_analyze(request: Request, store: dict, token: str):
         pd.DataFrame(rows).to_parquet(raw_dir / "journal.parquet", index=False)
 
     df = build_daily_dataset(data_dir)
+    debug_info.append(f"daily_df shape: {df.shape}")
+    debug_info.append(f"daily_df columns: {list(df.columns)[:10]}")
+
     if df.empty:
+        # Check what files were actually written
+        parquet_files = list(raw_dir.glob("*.parquet"))
+        debug_info.append(f"parquet files: {[f.name for f in parquet_files]}")
+        for f in parquet_files:
+            try:
+                tmp_df = pd.read_parquet(f)
+                debug_info.append(f"  {f.name}: {tmp_df.shape[0]} rows, cols={list(tmp_df.columns)[:5]}")
+            except Exception as e:
+                debug_info.append(f"  {f.name}: read error: {e}")
+
         return templates.TemplateResponse(request=request, name="dashboard.html", context={
             "has_data": False,
-            "error": f"No data returned from Whoop API.\n\nDebug: {'; '.join(debug_info)}\nDate range: {start_date} to {end_date}",
+            "error": f"No usable data after processing.\n\nDebug:\n" + "\n".join(debug_info),
         })
 
     target = "brain_fog"
