@@ -111,7 +111,7 @@ def oauth_callback(request: Request):
     })
 
     if response.status_code != 200:
-        raise HTTPException(502, f"Token exchange failed: {response.text}")
+        raise HTTPException(502, f"Token exchange failed (redirect_uri={redirect_uri}): {response.text}")
 
     tokens = response.json()
     store = _get_store(request)
@@ -171,7 +171,10 @@ def _do_analyze(request: Request, store: dict, token: str):
         parsed = [RecoveryRecord.from_api(r) for r in recovery_records]
         pd.DataFrame([asdict(r) for r in parsed]).to_parquet(raw_dir / "recovery.parquet", index=False)
 
-    journal_records = _fetch_paginated(f"{WHOOP_API_BASE}/v1/journal", params, headers)
+    try:
+        journal_records = _fetch_paginated(f"{WHOOP_API_BASE}/v1/journal/entry", params, headers)
+    except ValueError:
+        journal_records = []
     debug_info.append(f"journal: {len(journal_records)} records")
     if journal_records:
         rows = []
