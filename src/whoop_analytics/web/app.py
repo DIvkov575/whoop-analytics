@@ -153,21 +153,26 @@ def _do_analyze(request: Request, store: dict, token: str):
     raw_dir = data_dir / "raw"
     raw_dir.mkdir(parents=True, exist_ok=True)
 
-    end_date = date.today().isoformat()
-    start_date = (date.today() - timedelta(days=90)).isoformat()
+    end_date = date.today().isoformat() + "T23:59:59.999Z"
+    start_date = (date.today() - timedelta(days=90)).isoformat() + "T00:00:00.000Z"
     params = {"start": start_date, "end": end_date}
 
+    debug_info = []
+
     sleep_records = _fetch_paginated(f"{WHOOP_API_BASE}/v1/activity/sleep", params, headers)
+    debug_info.append(f"sleep: {len(sleep_records)} records")
     if sleep_records:
         parsed = [SleepRecord.from_api(r) for r in sleep_records]
         pd.DataFrame([asdict(r) for r in parsed]).to_parquet(raw_dir / "sleep.parquet", index=False)
 
     recovery_records = _fetch_paginated(f"{WHOOP_API_BASE}/v1/recovery", params, headers)
+    debug_info.append(f"recovery: {len(recovery_records)} records")
     if recovery_records:
         parsed = [RecoveryRecord.from_api(r) for r in recovery_records]
         pd.DataFrame([asdict(r) for r in parsed]).to_parquet(raw_dir / "recovery.parquet", index=False)
 
     journal_records = _fetch_paginated(f"{WHOOP_API_BASE}/v1/journal", params, headers)
+    debug_info.append(f"journal: {len(journal_records)} records")
     if journal_records:
         rows = []
         for entry in journal_records:
@@ -180,7 +185,8 @@ def _do_analyze(request: Request, store: dict, token: str):
     df = build_daily_dataset(data_dir)
     if df.empty:
         return templates.TemplateResponse(request=request, name="dashboard.html", context={
-            "has_data": False, "error": "No data returned from Whoop API.",
+            "has_data": False,
+            "error": f"No data returned from Whoop API.\n\nDebug: {'; '.join(debug_info)}\nDate range: {start_date} to {end_date}",
         })
 
     target = "brain_fog"
@@ -236,10 +242,9 @@ def _fetch_paginated(url: str, params: dict, headers: dict) -> list[dict]:
 
         response = httpx.get(url, params=req_params, headers=headers, timeout=30.0)
         if response.status_code == 401:
-            return []
+            raise ValueError(f"Whoop API returned 401 Unauthorized for {url}. Token may be expired.")
         if response.status_code != 200:
-            return all_records
-        response.raise_for_status()
+            raise ValueError(f"Whoop API returned {response.status_code} for {url}: {response.text[:200]}")
 
         body = response.json()
         all_records.extend(body.get("records", []))
