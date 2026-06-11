@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import secrets
 from datetime import date, timedelta
 from pathlib import Path
 from tempfile import mkdtemp
@@ -25,13 +26,26 @@ WHOOP_TOKEN_URL = "https://api.prod.whoop.com/oauth/oauth2/token"
 WHOOP_API_BASE = "https://api.prod.whoop.com/developer"
 SCOPES = "read:recovery read:cycles read:sleep read:workout read:profile read:body_measurement"
 
+# Server-side session store (avoids cookie size limits)
+_sessions: dict[str, dict] = {}
+
 app = FastAPI(title="Whoop Causal Analytics")
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.environ.get("SESSION_SECRET", "dev-secret-change-in-production"),
+    max_age=86400,
 )
 
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+
+
+def _get_store(request: Request) -> dict:
+    sid = request.session.get("sid")
+    if not sid or sid not in _sessions:
+        sid = secrets.token_urlsafe(16)
+        request.session["sid"] = sid
+        _sessions[sid] = {}
+    return _sessions[sid]
 
 
 def _client_id() -> str:
@@ -50,19 +64,20 @@ def _redirect_uri(request: Request) -> str:
 
 
 @app.get("/", response_class=HTMLResponse)
-async def index(request: Request):
-    if "access_token" not in request.session:
+def index(request: Request):
+    store = _get_store(request)
+    if "access_token" not in store:
         return templates.TemplateResponse(request=request, name="login.html")
     return templates.TemplateResponse(request=request, name="dashboard.html", context={
-        "has_data": "analysis" in request.session,
+        "has_data": store.get("has_analysis", False),
     })
 
 
 @app.get("/login")
-async def login(request: Request):
-    import secrets
+def login(request: Request):
+    store = _get_store(request)
     state = secrets.token_urlsafe(32)
-    request.session["oauth_state"] = state
+    store["oauth_state"] = state
     redirect_uri = _redirect_uri(request)
     auth_url = (
         f"{WHOOP_AUTH_URL}?"
@@ -76,7 +91,7 @@ async def login(request: Request):
 
 
 @app.get("/oath/callback")
-async def oauth_callback(request: Request):
+def oauth_callback(request: Request):
     error = request.query_params.get("error")
     if error:
         desc = request.query_params.get("error_description", "")
@@ -99,37 +114,42 @@ async def oauth_callback(request: Request):
         raise HTTPException(502, f"Token exchange failed: {response.text}")
 
     tokens = response.json()
-    request.session["access_token"] = tokens["access_token"]
-    request.session["refresh_token"] = tokens["refresh_token"]
+    store = _get_store(request)
+    store["access_token"] = tokens["access_token"]
+    store["refresh_token"] = tokens["refresh_token"]
     return RedirectResponse("/")
 
 
 @app.get("/logout")
-async def logout(request: Request):
+def logout(request: Request):
+    sid = request.session.get("sid")
+    if sid and sid in _sessions:
+        del _sessions[sid]
     request.session.clear()
     return RedirectResponse("/")
 
 
 @app.post("/analyze", response_class=HTMLResponse)
 def analyze(request: Request):
-    token = request.session.get("access_token")
+    store = _get_store(request)
+    token = store.get("access_token")
     if not token:
         return RedirectResponse("/")
 
     try:
-        return _do_analyze(request, token)
+        return _do_analyze(request, store, token)
     except Exception as e:
         import traceback
         tb = traceback.format_exc()
         return templates.TemplateResponse(request=request, name="dashboard.html", context={
-            "has_data": False, "error": f"Analysis failed: {e}\n\n{tb}",
+            "has_data": False, "error": f"Analysis failed: {type(e).__name__}: {e}\n\n{tb}",
         })
 
 
-def _do_analyze(request: Request, token: str):
+def _do_analyze(request: Request, store: dict, token: str):
     headers = {"Authorization": f"Bearer {token}"}
-    data_dir = Path(request.session.get("data_dir", mkdtemp(prefix="whoop_")))
-    request.session["data_dir"] = str(data_dir)
+    data_dir = Path(store.get("data_dir", mkdtemp(prefix="whoop_")))
+    store["data_dir"] = str(data_dir)
     raw_dir = data_dir / "raw"
     raw_dir.mkdir(parents=True, exist_ok=True)
 
@@ -184,8 +204,7 @@ def _do_analyze(request: Request, token: str):
                 effect = estimator.estimate(df=df, link=link, common_causes=[])
                 effects.append(effect)
 
-    request.session["analysis"] = True
-
+    store["has_analysis"] = True
     df = df.fillna(0)
 
     return templates.TemplateResponse(request=request, name="results.html", context={
@@ -199,8 +218,9 @@ def _do_analyze(request: Request, token: str):
 
 
 @app.get("/results", response_class=HTMLResponse)
-async def results(request: Request):
-    if "analysis" not in request.session:
+def results(request: Request):
+    store = _get_store(request)
+    if not store.get("has_analysis"):
         return RedirectResponse("/")
     return templates.TemplateResponse(request=request, name="dashboard.html", context={"has_data": True})
 
@@ -217,6 +237,8 @@ def _fetch_paginated(url: str, params: dict, headers: dict) -> list[dict]:
         response = httpx.get(url, params=req_params, headers=headers, timeout=30.0)
         if response.status_code == 401:
             return []
+        if response.status_code != 200:
+            return all_records
         response.raise_for_status()
 
         body = response.json()
