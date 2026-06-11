@@ -60,12 +60,16 @@ async def index(request: Request):
 
 @app.get("/login")
 async def login(request: Request):
+    import secrets
+    state = secrets.token_urlsafe(32)
+    request.session["oauth_state"] = state
     redirect_uri = _redirect_uri(request)
     auth_url = (
         f"{WHOOP_AUTH_URL}?"
         f"client_id={_client_id()}&"
         f"redirect_uri={redirect_uri}&"
         f"response_type=code&"
+        f"state={state}&"
         f"scope={SCOPES.replace(' ', '%20')}"
     )
     return RedirectResponse(auth_url)
@@ -73,9 +77,14 @@ async def login(request: Request):
 
 @app.get("/oath/callback")
 async def oauth_callback(request: Request):
+    error = request.query_params.get("error")
+    if error:
+        desc = request.query_params.get("error_description", "")
+        raise HTTPException(400, f"OAuth error: {error} - {desc}")
+
     code = request.query_params.get("code")
     if not code:
-        raise HTTPException(400, "Missing authorization code")
+        raise HTTPException(400, f"Missing authorization code. Params: {dict(request.query_params)}")
 
     redirect_uri = _redirect_uri(request)
     response = httpx.post(WHOOP_TOKEN_URL, data={
