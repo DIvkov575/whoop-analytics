@@ -219,19 +219,20 @@ def _do_analyze(request: Request, store: dict, token: str):
     debug_info.append(f"daily_df columns: {list(df.columns)[:10]}")
 
     if df.empty:
-        # Check what files were actually written
-        parquet_files = list(raw_dir.glob("*.parquet"))
-        debug_info.append(f"parquet files: {[f.name for f in parquet_files]}")
-        for f in parquet_files:
-            try:
-                tmp_df = pd.read_parquet(f)
-                debug_info.append(f"  {f.name}: {tmp_df.shape[0]} rows, cols={list(tmp_df.columns)[:5]}")
-            except Exception as e:
-                debug_info.append(f"  {f.name}: read error: {e}")
+        all_404 = all("404" in d for d in debug_info if "ERROR" in d)
+        if all_404:
+            msg = (
+                "Your Whoop account has no synced data available.\n\n"
+                "This usually means your Whoop band hasn't synced recently. "
+                "Charge your band, open the Whoop app to sync, then try again.\n\n"
+                "Technical detail:\n" + "\n".join(debug_info)
+            )
+        else:
+            msg = f"No usable data after processing.\n\nDebug:\n" + "\n".join(debug_info)
 
         return templates.TemplateResponse(request=request, name="dashboard.html", context={
             "has_data": False,
-            "error": f"No usable data after processing.\n\nDebug:\n" + "\n".join(debug_info),
+            "error": msg,
         })
 
     target = "brain_fog"
