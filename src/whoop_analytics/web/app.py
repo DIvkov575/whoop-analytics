@@ -189,12 +189,12 @@ def _do_analyze(request: Request, store: dict, token: str):
             "has_data": False, "error": "Access token expired. Please reconnect your Whoop account.",
         })
 
-    sleep_records = _try_fetch(f"{WHOOP_API_BASE}/v1/activity/sleep", params, headers, debug_info, "sleep")
+    sleep_records = _try_fetch(f"{WHOOP_API_BASE}/v1/activity/sleep/collection", params, headers, debug_info, "sleep")
     if sleep_records:
         parsed = [SleepRecord.from_api(r) for r in sleep_records]
         pd.DataFrame([asdict(r) for r in parsed]).to_parquet(raw_dir / "sleep.parquet", index=False)
 
-    recovery_records = _try_fetch(f"{WHOOP_API_BASE}/v1/recovery", params, headers, debug_info, "recovery")
+    recovery_records = _try_fetch(f"{WHOOP_API_BASE}/v1/recovery/collection", params, headers, debug_info, "recovery")
     if recovery_records:
         parsed = [RecoveryRecord.from_api(r) for r in recovery_records]
         pd.DataFrame([asdict(r) for r in parsed]).to_parquet(raw_dir / "recovery.parquet", index=False)
