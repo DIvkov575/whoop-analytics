@@ -32,6 +32,16 @@ _sessions: dict[str, dict] = {}
 app = FastAPI(title="Whoop Causal Analytics")
 
 
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    import traceback
+    tb = traceback.format_exc()
+    return HTMLResponse(
+        content=f"<pre>UNHANDLED ERROR:\n{type(exc).__name__}: {exc}\n\n{tb}\n\nPath: {request.url}\nMethod: {request.method}</pre>",
+        status_code=500,
+    )
+
+
 @app.get("/health")
 def health():
     return {
