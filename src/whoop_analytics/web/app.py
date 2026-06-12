@@ -52,6 +52,52 @@ def health():
         "session_secret_set": bool(os.environ.get("SESSION_SECRET")),
         "active_sessions": len(_sessions),
     }
+
+
+@app.get("/debug/api")
+def debug_api(request: Request):
+    """Hit every Whoop endpoint with the user's token and return raw responses."""
+    store = _get_store(request)
+    token = store.get("access_token")
+    if not token:
+        return {"error": "not authenticated - go to / and connect first"}
+
+    headers = {"Authorization": f"Bearer {token}"}
+    results = {}
+
+    endpoints = [
+        "/v1/cycle",
+        "/v1/cycle?limit=1",
+    ]
+
+    # Also get a single cycle ID and try sub-resources
+    try:
+        r = httpx.get(f"{WHOOP_API_BASE}/v1/cycle", headers=headers, timeout=10)
+        if r.status_code == 200:
+            records = r.json().get("records", [])
+            if records:
+                cid = records[0]["id"]
+                endpoints += [
+                    f"/v1/cycle/{cid}",
+                    f"/v1/cycle/{cid}/sleep",
+                    f"/v1/cycle/{cid}/recovery",
+                    f"/v1/recovery/{cid}",
+                ]
+    except Exception:
+        pass
+
+    for ep in endpoints:
+        url = f"{WHOOP_API_BASE}{ep}"
+        try:
+            r = httpx.get(url, headers=headers, timeout=10)
+            results[ep] = {
+                "status": r.status_code,
+                "body": r.text[:500],
+            }
+        except Exception as e:
+            results[ep] = {"status": "error", "body": str(e)}
+
+    return results
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.environ.get("SESSION_SECRET", "dev-secret-change-in-production"),
@@ -190,21 +236,49 @@ def _do_analyze(request: Request, store: dict, token: str):
         })
 
     # Try with params first, then without if 404
-    sleep_records = _try_fetch(f"{WHOOP_API_BASE}/v1/activity/sleep/collection", params, headers, debug_info, "sleep(with dates)")
-    if not sleep_records:
-        sleep_records = _try_fetch(f"{WHOOP_API_BASE}/v1/activity/sleep/collection", {}, headers, debug_info, "sleep(no dates)")
+    # Fetch cycles (the only data endpoint that works)
+    cycle_records = _try_fetch(f"{WHOOP_API_BASE}/v1/cycle", {}, headers, debug_info, "cycles")
+
+    if cycle_records:
+        rows = []
+        for c in cycle_records:
+            if not c.get("end"):
+                continue
+            score = c.get("score") or {}
+            rows.append({
+                "id": c["id"],
+                "start": c["start"],
+                "end": c["end"],
+                "nap": False,
+                "total_sleep_minutes": None,
+                "sws_minutes": None,
+                "rem_minutes": None,
+                "light_minutes": None,
+                "disturbance_count": None,
+                "respiratory_rate": None,
+                "sleep_efficiency": None,
+                "sleep_debt_minutes": None,
+                "strain": score.get("strain"),
+                "average_heart_rate": score.get("average_heart_rate"),
+                "max_heart_rate": score.get("max_heart_rate"),
+                "kilojoule": score.get("kilojoule"),
+            })
+        if rows:
+            pd.DataFrame(rows).to_parquet(raw_dir / "sleep.parquet", index=False)
+            debug_info.append(f"wrote {len(rows)} cycle rows as sleep.parquet")
+
+    # Try sleep/recovery in case they start working
+    sleep_records = _try_fetch(f"{WHOOP_API_BASE}/v1/activity/sleep", {}, headers, debug_info, "sleep")
     if sleep_records:
         parsed = [SleepRecord.from_api(r) for r in sleep_records]
         pd.DataFrame([asdict(r) for r in parsed]).to_parquet(raw_dir / "sleep.parquet", index=False)
 
-    recovery_records = _try_fetch(f"{WHOOP_API_BASE}/v1/recovery/collection", params, headers, debug_info, "recovery(with dates)")
-    if not recovery_records:
-        recovery_records = _try_fetch(f"{WHOOP_API_BASE}/v1/recovery/collection", {}, headers, debug_info, "recovery(no dates)")
+    recovery_records = _try_fetch(f"{WHOOP_API_BASE}/v1/recovery", {}, headers, debug_info, "recovery")
     if recovery_records:
         parsed = [RecoveryRecord.from_api(r) for r in recovery_records]
         pd.DataFrame([asdict(r) for r in parsed]).to_parquet(raw_dir / "recovery.parquet", index=False)
 
-    journal_records = _try_fetch(f"{WHOOP_API_BASE}/v1/journal/entry", params, headers, debug_info, "journal")
+    journal_records = _try_fetch(f"{WHOOP_API_BASE}/v1/journal/entry", {}, headers, debug_info, "journal")
     if journal_records:
         rows = []
         for entry in journal_records:

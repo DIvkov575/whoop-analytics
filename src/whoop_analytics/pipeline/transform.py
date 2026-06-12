@@ -29,12 +29,21 @@ def _load_sleep(raw_dir: Path) -> pd.DataFrame:
         return pd.DataFrame()
 
     df = pd.read_parquet(path)
-    df = df[df["nap"] == False].copy()
+    if "nap" in df.columns:
+        df = df[df["nap"] == False].copy()
 
     df["end"] = pd.to_datetime(df["end"])
     df["date"] = df["end"].dt.normalize()
-    df = df.drop(columns=["id", "start", "end", "nap"])
-    df = df.sort_values("total_sleep_minutes", ascending=False)
+
+    drop_cols = [c for c in ["id", "start", "end", "nap"] if c in df.columns]
+    df = df.drop(columns=drop_cols)
+
+    # Drop columns that are entirely null
+    df = df.dropna(axis=1, how="all")
+
+    if "total_sleep_minutes" in df.columns:
+        df = df.sort_values("total_sleep_minutes", ascending=False)
+
     df = df.set_index("date")
     df = df[~df.index.duplicated(keep="first")]
 
