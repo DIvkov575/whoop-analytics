@@ -309,14 +309,7 @@ def _do_analyze(request: Request, store: dict, token: str):
             "error": msg,
         })
 
-    # Use brain_fog if available, otherwise use strain as target
-    if "brain_fog" in df.columns:
-        target = "brain_fog"
-    elif "strain" in df.columns:
-        target = "strain"
-    else:
-        target = df.columns[0]
-
+    target = "brain_fog"
     feature_cols = [c for c in df.columns if c != target]
     df = add_lag_features(df, columns=feature_cols, lags=[1, 2])
     df = add_rolling_features(df, columns=feature_cols, windows=[3, 7])
@@ -344,7 +337,6 @@ def _do_analyze(request: Request, store: dict, token: str):
         "df": df,
         "links": links,
         "effects": effects,
-        "target": target,
         "n_obs": len(df),
         "date_start": df.index[0].strftime("%Y-%m-%d") if not df.empty else "",
         "date_end": df.index[-1].strftime("%Y-%m-%d") if not df.empty else "",
