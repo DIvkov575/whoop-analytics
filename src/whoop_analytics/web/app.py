@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import time
 import secrets
 from datetime import date, timedelta
 from pathlib import Path
@@ -79,12 +80,17 @@ def debug_api(request: Request):
         url = f"{WHOOP_API_BASE}{ep}"
         try:
             r = httpx.get(url, headers=headers, timeout=10)
+            if r.status_code == 429:
+                retry_after = int(r.headers.get("Retry-After", "2"))
+                time.sleep(retry_after)
+                r = httpx.get(url, headers=headers, timeout=10)
             results[ep] = {
                 "status": r.status_code,
                 "body": r.text[:500],
             }
         except Exception as e:
             results[ep] = {"status": "error", "body": str(e)}
+        time.sleep(0.5)
 
     return results
 app.add_middleware(
@@ -224,8 +230,9 @@ def _do_analyze(request: Request, store: dict, token: str):
             "has_data": False, "error": "Access token expired. Please reconnect your Whoop account.",
         })
 
-    # Fetch cycles
+    # Fetch cycles (delays between endpoints to avoid 429 rate limits)
     cycle_records = _try_fetch(f"{WHOOP_API_BASE}/v2/cycle", {}, headers, debug_info, "cycles")
+    time.sleep(0.5)
 
     if cycle_records:
         rows = []
@@ -260,11 +267,13 @@ def _do_analyze(request: Request, store: dict, token: str):
     if sleep_records:
         parsed = [SleepRecord.from_api(r) for r in sleep_records]
         pd.DataFrame([asdict(r) for r in parsed]).to_parquet(raw_dir / "sleep.parquet", index=False)
+    time.sleep(0.5)
 
     recovery_records = _try_fetch(f"{WHOOP_API_BASE}/v2/recovery", {}, headers, debug_info, "recovery")
     if recovery_records:
         parsed = [RecoveryRecord.from_api(r) for r in recovery_records]
         pd.DataFrame([asdict(r) for r in parsed]).to_parquet(raw_dir / "recovery.parquet", index=False)
+    time.sleep(0.5)
 
     # Fetch workouts
     workout_records = _try_fetch(f"{WHOOP_API_BASE}/v2/activity/workout", {}, headers, debug_info, "workouts")
@@ -287,6 +296,8 @@ def _do_analyze(request: Request, store: dict, token: str):
             pd.DataFrame(rows).to_parquet(raw_dir / "workouts.parquet", index=False)
             debug_info.append(f"wrote {len(rows)} workout rows")
 
+    time.sleep(0.5)
+
     # Fetch journal (lifestyle factors: caffeine, alcohol, stress, etc.)
     journal_records = _try_fetch(f"{WHOOP_API_BASE}/v2/journal", {}, headers, debug_info, "journal")
     if journal_records:
@@ -299,6 +310,8 @@ def _do_analyze(request: Request, store: dict, token: str):
         if rows:
             pd.DataFrame(rows).to_parquet(raw_dir / "journal.parquet", index=False)
             debug_info.append(f"wrote {len(rows)} journal rows")
+
+    time.sleep(0.5)
 
     # Fetch body measurements
     body_resp = _try_fetch_single(f"{WHOOP_API_BASE}/v2/user/measurement/body", headers, debug_info, "body")
@@ -395,6 +408,10 @@ def _try_fetch(url: str, params: dict, headers: dict, debug_info: list, label: s
 def _try_fetch_single(url: str, headers: dict, debug_info: list, label: str) -> dict | None:
     try:
         response = httpx.get(url, headers=headers, timeout=10)
+        if response.status_code == 429:
+            retry_after = int(response.headers.get("Retry-After", "2"))
+            time.sleep(retry_after)
+            response = httpx.get(url, headers=headers, timeout=10)
         if response.status_code != 200:
             debug_info.append(f"{label}: ERROR - HTTP {response.status_code}")
             return None
@@ -415,6 +432,12 @@ def _fetch_paginated(url: str, params: dict, headers: dict) -> list[dict]:
             req_params["nextToken"] = next_token
 
         response = httpx.get(url, params=req_params, headers=headers, timeout=30.0)
+
+        if response.status_code == 429:
+            retry_after = int(response.headers.get("Retry-After", "2"))
+            time.sleep(retry_after)
+            response = httpx.get(url, params=req_params, headers=headers, timeout=30.0)
+
         if response.status_code == 401:
             raise ValueError(f"Whoop API returned 401 Unauthorized for {url}. Token may be expired.")
         if response.status_code == 404:
@@ -428,5 +451,7 @@ def _fetch_paginated(url: str, params: dict, headers: dict) -> list[dict]:
 
         if not next_token:
             break
+
+        time.sleep(0.3)
 
     return all_records
