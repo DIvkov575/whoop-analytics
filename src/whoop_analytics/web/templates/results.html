@@ -105,7 +105,17 @@ const darkLayout = {
 {% if df is not none and not df.empty %}
 const dates = {{ df.index.strftime('%Y-%m-%d').tolist() | tojson }};
 
-{% if 'hrv_rmssd' in df.columns %}
+{% if 'strain' in df.columns %}
+Plotly.newPlot('chart-hrv', [
+  {x: dates, y: {{ df['strain'].tolist() | tojson }}, name: 'Strain', type: 'scatter', line: {color: '#2196F3'}},
+  {% if 'average_heart_rate' in df.columns %}
+  {x: dates, y: {{ df['average_heart_rate'].tolist() | tojson }}, name: 'Avg HR', type: 'scatter', yaxis: 'y2', line: {color: '#FF5722'}},
+  {% endif %}
+], {...darkLayout, title: 'Daily Strain & Heart Rate', height: 300,
+    yaxis: {...darkLayout.yaxis, title: 'Strain'},
+    yaxis2: {title: 'Avg HR (bpm)', overlaying: 'y', side: 'right', gridcolor: '#222', font: {color: '#999'}},
+}, plotConfig);
+{% elif 'hrv_rmssd' in df.columns %}
 Plotly.newPlot('chart-hrv', [
   {x: dates, y: {{ df['hrv_rmssd'].tolist() | tojson }}, name: 'HRV (rMSSD)', type: 'scatter', line: {color: '#2196F3'}},
   {% if 'resting_hr' in df.columns %}
@@ -117,7 +127,13 @@ Plotly.newPlot('chart-hrv', [
 }, plotConfig);
 {% endif %}
 
-{% if 'sws_minutes' in df.columns %}
+{% if 'kilojoule' in df.columns %}
+Plotly.newPlot('chart-sleep', [
+  {x: dates, y: {{ df['kilojoule'].tolist() | tojson }}, name: 'Energy (kJ)', type: 'bar', marker: {color: '#3F51B5'}},
+], {...darkLayout, title: 'Daily Energy Expenditure', height: 300,
+    yaxis: {...darkLayout.yaxis, title: 'Kilojoules'},
+}, plotConfig);
+{% elif 'sws_minutes' in df.columns %}
 Plotly.newPlot('chart-sleep', [
   {x: dates, y: {{ df['sws_minutes'].tolist() | tojson }}, name: 'Deep (SWS)', type: 'bar', marker: {color: '#3F51B5'}},
   {x: dates, y: {{ df['rem_minutes'].tolist() | tojson }}, name: 'REM', type: 'bar', marker: {color: '#9C27B0'}},
@@ -127,7 +143,13 @@ Plotly.newPlot('chart-sleep', [
 }, plotConfig);
 {% endif %}
 
-{% if 'brain_fog' in df.columns %}
+{% if 'max_heart_rate' in df.columns %}
+Plotly.newPlot('chart-fog', [
+  {x: dates, y: {{ df['max_heart_rate'].tolist() | tojson }}, name: 'Max HR', type: 'scatter', mode: 'lines+markers', line: {color: '#F44336'}, marker: {size: 5}},
+], {...darkLayout, title: 'Max Heart Rate', height: 250,
+    yaxis: {...darkLayout.yaxis, title: 'BPM'},
+}, plotConfig);
+{% elif 'brain_fog' in df.columns %}
 Plotly.newPlot('chart-fog', [
   {x: dates, y: {{ df['brain_fog'].tolist() | tojson }}, name: 'Brain Fog', type: 'scatter', mode: 'lines+markers', line: {color: '#F44336'}, marker: {size: 5}},
 ], {...darkLayout, title: 'Brain Fog Score', height: 250,
