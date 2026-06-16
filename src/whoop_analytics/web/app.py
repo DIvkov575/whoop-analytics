@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import time
 import secrets
@@ -29,6 +30,60 @@ SCOPES = "read:recovery read:cycles read:sleep read:workout read:profile read:bo
 
 # Server-side session store (avoids cookie size limits)
 _sessions: dict[str, dict] = {}
+
+TOKEN_CACHE_PATH = Path(os.environ.get("TOKEN_CACHE_PATH", "/data/tokens.json"))
+
+
+def _save_cached_tokens(access_token: str, refresh_token: str, expires_in: int, token_file: Path = None) -> None:
+    path = token_file or TOKEN_CACHE_PATH
+    path.parent.mkdir(parents=True, exist_ok=True)
+    data = {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "expires_at": time.time() + expires_in,
+    }
+    path.write_text(json.dumps(data))
+
+
+def _load_cached_tokens(token_file: Path = None) -> dict | None:
+    path = token_file or TOKEN_CACHE_PATH
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text())
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
+def _refresh_cached_tokens(token_file: Path = None) -> str | None:
+    path = token_file or TOKEN_CACHE_PATH
+    data = _load_cached_tokens(token_file=path)
+    if not data:
+        return None
+
+    refresh_token = data.get("refresh_token") or os.environ.get("WHOOP_REFRESH_TOKEN", "")
+    if not refresh_token:
+        return None
+
+    try:
+        response = httpx.post(WHOOP_TOKEN_URL, data={
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token,
+            "client_id": _client_id(),
+            "client_secret": _client_secret(),
+        }, timeout=10)
+        if response.status_code != 200:
+            return None
+        body = response.json()
+        _save_cached_tokens(
+            access_token=body["access_token"],
+            refresh_token=body.get("refresh_token", refresh_token),
+            expires_in=body.get("expires_in", 3600),
+            token_file=path,
+        )
+        return body["access_token"]
+    except Exception:
+        return None
 
 app = FastAPI(title="Whoop Causal Analytics")
 
@@ -108,6 +163,40 @@ def _get_store(request: Request) -> dict:
         sid = secrets.token_urlsafe(16)
         request.session["sid"] = sid
         _sessions[sid] = {}
+        # Try to restore from cached tokens
+        cached = _load_cached_tokens()
+        if cached:
+            if cached.get("expires_at", 0) > time.time():
+                _sessions[sid]["access_token"] = cached["access_token"]
+                _sessions[sid]["refresh_token"] = cached.get("refresh_token", "")
+            elif cached.get("refresh_token"):
+                new_token = _refresh_cached_tokens()
+                if new_token:
+                    _sessions[sid]["access_token"] = new_token
+                    refreshed = _load_cached_tokens()
+                    _sessions[sid]["refresh_token"] = refreshed.get("refresh_token", "")
+        # If still no token, try bootstrapping from env var
+        if "access_token" not in _sessions[sid]:
+            env_refresh = os.environ.get("WHOOP_REFRESH_TOKEN", "")
+            if env_refresh:
+                try:
+                    response = httpx.post(WHOOP_TOKEN_URL, data={
+                        "grant_type": "refresh_token",
+                        "refresh_token": env_refresh,
+                        "client_id": _client_id(),
+                        "client_secret": _client_secret(),
+                    }, timeout=10)
+                    if response.status_code == 200:
+                        body = response.json()
+                        _sessions[sid]["access_token"] = body["access_token"]
+                        _sessions[sid]["refresh_token"] = body.get("refresh_token", env_refresh)
+                        _save_cached_tokens(
+                            access_token=body["access_token"],
+                            refresh_token=body.get("refresh_token", env_refresh),
+                            expires_in=body.get("expires_in", 3600),
+                        )
+                except Exception:
+                    pass
     return _sessions[sid]
 
 
@@ -180,6 +269,11 @@ def oauth_callback(request: Request):
     store = _get_store(request)
     store["access_token"] = tokens["access_token"]
     store["refresh_token"] = tokens.get("refresh_token", "")
+    _save_cached_tokens(
+        access_token=tokens["access_token"],
+        refresh_token=tokens.get("refresh_token", ""),
+        expires_in=tokens.get("expires_in", 3600),
+    )
     return RedirectResponse("/")
 
 
@@ -317,7 +411,6 @@ def _do_analyze(request: Request, store: dict, token: str):
     body_resp = _try_fetch_single(f"{WHOOP_API_BASE}/v2/user/measurement/body", headers, debug_info, "body")
     if body_resp:
         body_file = raw_dir / "body.json"
-        import json
         body_file.write_text(json.dumps(body_resp))
         debug_info.append(f"wrote body measurements")
 
