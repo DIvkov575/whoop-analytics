@@ -6,18 +6,24 @@
 <title>Whoop Causal Analytics</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f0f23; color: #e0e0e0; min-height: 100vh; }
-  nav { display: flex; justify-content: space-between; align-items: center; padding: 16px 32px; border-bottom: 1px solid #222; }
-  nav h1 { font-size: 1.2rem; color: #fff; }
-  nav a { color: #999; text-decoration: none; font-size: 0.9rem; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a1a; color: #e0e0e0; min-height: 100vh; }
+  nav { display: flex; justify-content: space-between; align-items: center; padding: 16px 32px; background: #0f0f23; border-bottom: 1px solid #1a1a3e; }
+  nav h1 { font-size: 1.2rem; color: #fff; letter-spacing: -0.5px; }
+  nav a { color: #666; text-decoration: none; font-size: 0.85rem; transition: color 0.2s; }
   nav a:hover { color: #fff; }
-  .main { max-width: 800px; margin: 60px auto; padding: 0 24px; text-align: center; }
-  .main h2 { font-size: 1.8rem; color: #fff; margin-bottom: 16px; }
-  .main p { color: #999; margin-bottom: 32px; line-height: 1.6; }
-  .btn { display: inline-block; padding: 14px 32px; background: #4CAF50; color: #fff; text-decoration: none; border-radius: 8px; font-size: 1.1rem; font-weight: 600; border: none; cursor: pointer; transition: background 0.2s; }
-  .btn:hover { background: #388E3C; }
+  .main { max-width: 640px; margin: 80px auto; padding: 0 24px; text-align: center; }
+  .main h2 { font-size: 2rem; color: #fff; margin-bottom: 12px; font-weight: 700; letter-spacing: -0.5px; }
+  .main p { color: #777; margin-bottom: 32px; line-height: 1.7; font-size: 1.05rem; }
+  .btn { display: inline-block; padding: 14px 36px; background: linear-gradient(135deg, #4CAF50, #2E7D32); color: #fff; text-decoration: none; border-radius: 8px; font-size: 1.05rem; font-weight: 600; border: none; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; box-shadow: 0 4px 12px rgba(76,175,80,0.3); }
+  .btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(76,175,80,0.4); }
+  .btn:active { transform: translateY(0); }
   form { display: inline; }
-  .error { background: #2d1b1b; border: 1px solid #5c2020; border-radius: 8px; padding: 16px; margin-bottom: 24px; color: #f88; }
+  .error { background: #1a0f0f; border: 1px solid #3d1b1b; border-radius: 10px; padding: 16px 20px; margin-bottom: 28px; color: #f88; text-align: left; }
+  .error pre { white-space: pre-wrap; margin: 0; font-size: 0.85rem; line-height: 1.5; }
+  .features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 40px; text-align: center; }
+  .features .feat { padding: 16px 12px; background: #12122a; border: 1px solid #1a1a3e; border-radius: 8px; }
+  .features .feat .icon { font-size: 1.5rem; margin-bottom: 6px; }
+  .features .feat .name { font-size: 0.8rem; color: #666; }
 </style>
 </head>
 <body>
@@ -27,19 +33,25 @@
 </nav>
 <div class="main">
   {% if error %}
-  <div class="error"><pre style="white-space:pre-wrap;margin:0;">{{ error }}</pre></div>
+  <div class="error"><pre>{{ error }}</pre></div>
   {% endif %}
 
   <h2>Ready to Analyze</h2>
-  <p>This will fetch your last 180 days of Whoop data, run causal discovery (PCMCI), and estimate what drives your brain fog.</p>
+  <p>Fetch your last 90 days of Whoop data, run causal discovery with PCMCI, and estimate what actually drives your recovery and performance.</p>
 
   <form method="post" action="/analyze">
-    <button type="submit" class="btn">Fetch Data & Run Analysis</button>
+    <button type="submit" class="btn">Run Causal Analysis</button>
   </form>
 
   {% if has_data %}
-  <p style="margin-top: 24px;"><a href="/results" style="color: #4CAF50;">View latest results &rarr;</a></p>
+  <p style="margin-top: 24px;"><a href="/results" style="color: #4CAF50; font-weight: 500;">View latest results &rarr;</a></p>
   {% endif %}
+
+  <div class="features">
+    <div class="feat"><div class="icon">&#x1F4CA;</div><div class="name">Sleep, Recovery, Strain</div></div>
+    <div class="feat"><div class="icon">&#x1F517;</div><div class="name">Causal Discovery</div></div>
+    <div class="feat"><div class="icon">&#x2696;</div><div class="name">Effect Estimation</div></div>
+  </div>
 </div>
 </body>
 </html>

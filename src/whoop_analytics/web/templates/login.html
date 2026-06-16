@@ -6,19 +6,24 @@
 <title>Whoop Causal Analytics</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f0f23; color: #e0e0e0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a1a; color: #e0e0e0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
   .container { text-align: center; max-width: 480px; padding: 40px; }
-  h1 { font-size: 2.5rem; margin-bottom: 12px; color: #fff; }
-  p { font-size: 1.1rem; color: #999; margin-bottom: 32px; line-height: 1.6; }
-  .btn { display: inline-block; padding: 14px 32px; background: #4CAF50; color: #fff; text-decoration: none; border-radius: 8px; font-size: 1.1rem; font-weight: 600; transition: background 0.2s; }
-  .btn:hover { background: #388E3C; }
+  h1 { font-size: 2.5rem; margin-bottom: 8px; color: #fff; font-weight: 700; letter-spacing: -1px; }
+  .subtitle { font-size: 0.9rem; color: #4CAF50; margin-bottom: 24px; text-transform: uppercase; letter-spacing: 2px; font-weight: 500; }
+  p { font-size: 1.05rem; color: #777; margin-bottom: 36px; line-height: 1.7; }
+  .btn { display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #4CAF50, #2E7D32); color: #fff; text-decoration: none; border-radius: 8px; font-size: 1.1rem; font-weight: 600; transition: transform 0.15s, box-shadow 0.15s; box-shadow: 0 4px 16px rgba(76,175,80,0.3); }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(76,175,80,0.4); }
+  .btn:active { transform: translateY(0); }
+  .note { margin-top: 32px; font-size: 0.8rem; color: #444; }
 </style>
 </head>
 <body>
 <div class="container">
-  <h1>Whoop Causal Analytics</h1>
-  <p>Discover what actually causes your brain fog using causal inference on your Whoop sleep and HRV data.</p>
+  <h1>Whoop Analytics</h1>
+  <div class="subtitle">Causal Inference Engine</div>
+  <p>Discover what actually drives your recovery, HRV, and strain using time-series causal analysis on your Whoop data.</p>
   <a href="/login" class="btn">Connect Whoop</a>
+  <p class="note">Your data stays on this server. We use read-only API access.</p>
 </div>
 </body>
 </html>

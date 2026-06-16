@@ -7,158 +7,397 @@
 <script src="https://cdn.plot.ly/plotly-2.35.0.min.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f0f23; color: #e0e0e0; min-height: 100vh; }
-  nav { display: flex; justify-content: space-between; align-items: center; padding: 16px 32px; border-bottom: 1px solid #222; }
-  nav h1 { font-size: 1.2rem; color: #fff; }
-  nav .links a { color: #999; text-decoration: none; font-size: 0.9rem; margin-left: 20px; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a1a; color: #e0e0e0; min-height: 100vh; }
+
+  nav { display: flex; justify-content: space-between; align-items: center; padding: 16px 32px; background: #0f0f23; border-bottom: 1px solid #1a1a3e; }
+  nav h1 { font-size: 1.2rem; color: #fff; letter-spacing: -0.5px; }
+  nav .links a { color: #666; text-decoration: none; font-size: 0.85rem; margin-left: 20px; transition: color 0.2s; }
   nav .links a:hover { color: #fff; }
-  .content { max-width: 1100px; margin: 32px auto; padding: 0 24px; }
-  .meta { color: #666; margin-bottom: 32px; font-size: 0.9rem; }
-  .section { margin-bottom: 48px; }
-  .section h2 { font-size: 1.4rem; color: #fff; margin-bottom: 16px; border-bottom: 1px solid #333; padding-bottom: 8px; }
-  .chart { background: #1a1a2e; border-radius: 8px; padding: 16px; margin-bottom: 24px; }
-  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
-  th { background: #1a1a2e; color: #aaa; text-align: left; padding: 10px 12px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; }
-  td { padding: 10px 12px; border-top: 1px solid #222; }
-  .effect-card { background: #1a1a2e; border-radius: 8px; padding: 20px; margin: 12px 0; }
-  .effect-card.robust { border-left: 4px solid #4CAF50; }
-  .effect-card.uncertain { border-left: 4px solid #F44336; }
-  .effect-card h3 { font-size: 1rem; margin-bottom: 8px; }
-  .effect-card .stats { display: flex; gap: 24px; color: #999; font-size: 0.9rem; }
-  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+
+  .content { max-width: 1400px; margin: 0 auto; padding: 24px; }
+
+  .meta-bar { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; padding: 12px 16px; background: #12122a; border-radius: 8px; border: 1px solid #1a1a3e; }
+  .meta-bar .tag { background: #1a1a3e; padding: 4px 10px; border-radius: 4px; font-size: 0.8rem; color: #888; }
+  .meta-bar .tag strong { color: #ccc; }
+
+  /* Summary Cards */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 32px; }
+  .card { background: linear-gradient(135deg, #12122a 0%, #1a1a3e 100%); border: 1px solid #252550; border-radius: 12px; padding: 20px; position: relative; overflow: hidden; }
+  .card::after { content: ''; position: absolute; top: 0; right: 0; width: 60px; height: 60px; border-radius: 0 0 0 60px; opacity: 0.1; }
+  .card.green::after { background: #4CAF50; }
+  .card.blue::after { background: #2196F3; }
+  .card.purple::after { background: #9C27B0; }
+  .card.orange::after { background: #FF9800; }
+  .card.red::after { background: #F44336; }
+  .card .label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #666; margin-bottom: 8px; }
+  .card .value { font-size: 2rem; font-weight: 700; color: #fff; line-height: 1; }
+  .card .unit { font-size: 0.85rem; color: #666; margin-top: 4px; }
+  .card .sparkline { margin-top: 12px; height: 30px; }
+
+  /* Chart Grid */
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 32px; }
+  @media (max-width: 900px) { .chart-grid { grid-template-columns: 1fr; } }
+  .chart-panel { background: #12122a; border: 1px solid #1a1a3e; border-radius: 12px; padding: 20px; }
+  .chart-panel.wide { grid-column: 1 / -1; }
+  .chart-panel h3 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: #666; margin-bottom: 12px; }
+
+  /* Causal Results */
+  .section { margin-bottom: 40px; }
+  .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+  .section-header h2 { font-size: 1.3rem; color: #fff; }
+  .section-header .count { background: #252550; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; color: #888; }
+
+  .links-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+  .link-card { background: #12122a; border: 1px solid #1a1a3e; border-radius: 10px; padding: 16px; transition: border-color 0.2s; }
+  .link-card:hover { border-color: #333366; }
+  .link-card .arrow { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .link-card .arrow .src { color: #2196F3; font-weight: 600; font-size: 0.9rem; }
+  .link-card .arrow .sep { color: #444; }
+  .link-card .arrow .tgt { color: #4CAF50; font-weight: 600; font-size: 0.9rem; }
+  .link-card .details { display: flex; gap: 16px; font-size: 0.8rem; color: #666; }
+  .link-card .details span strong { color: #aaa; }
+
+  .effect-card { background: #12122a; border: 1px solid #1a1a3e; border-radius: 10px; padding: 20px; margin: 12px 0; border-left: 4px solid transparent; }
+  .effect-card.robust { border-left-color: #4CAF50; }
+  .effect-card.uncertain { border-left-color: #F44336; }
+  .effect-card .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .effect-card .header h3 { font-size: 0.95rem; color: #ddd; }
+  .effect-card .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .effect-card .stat { text-align: center; }
+  .effect-card .stat .val { font-size: 1.2rem; font-weight: 700; color: #fff; }
+  .effect-card .stat .lbl { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: #666; margin-top: 2px; }
+
+  .badge { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
   .badge.pass { background: #1b3d1b; color: #4CAF50; }
   .badge.fail { background: #3d1b1b; color: #F44336; }
-  .empty { color: #666; font-style: italic; }
+
+  .empty { color: #555; font-style: italic; padding: 24px; text-align: center; background: #12122a; border-radius: 8px; }
+
+  .debug-toggle { margin-top: 40px; padding-top: 20px; border-top: 1px solid #1a1a3e; }
+  .debug-toggle summary { color: #444; cursor: pointer; font-size: 0.8rem; }
+  .debug-toggle pre { margin-top: 8px; font-size: 0.75rem; color: #555; white-space: pre-wrap; }
 </style>
 </head>
 <body>
 <nav>
   <h1>Whoop Causal Analytics</h1>
   <div class="links">
-    <a href="/">Home</a>
+    <a href="/">Dashboard</a>
+    <a href="/debug/api">API Status</a>
     <a href="/logout">Disconnect</a>
   </div>
 </nav>
-<div class="content">
-  <p class="meta">{{ n_obs }} observations &middot; {{ date_start }} to {{ date_end }}{% if target %} &middot; causal target: <strong>{{ target }}</strong>{% endif %}</p>
 
-  <div class="section">
-    <h2>Health Metrics</h2>
-    <div class="chart" id="chart-hrv"></div>
-    <div class="chart" id="chart-sleep"></div>
-    <div class="chart" id="chart-fog"></div>
+<div class="content">
+  <div class="meta-bar">
+    <span class="tag"><strong>{{ n_obs }}</strong> days</span>
+    <span class="tag">{{ date_start }} &rarr; {{ date_end }}</span>
+    {% if target %}<span class="tag">Target: <strong>{{ target }}</strong></span>{% endif %}
   </div>
 
-  <div class="section">
-    <h2>Causal Links Discovered</h2>
-    {% if links %}
-    <table>
-      <tr><th>Source</th><th>Target</th><th>Lag</th><th>Strength</th><th>p-value</th></tr>
-      {% for link in links %}
-      <tr>
-        <td>{{ link.source }}</td>
-        <td>{{ link.target }}</td>
-        <td>{{ link.lag }}d</td>
-        <td>{{ "%.3f"|format(link.strength) }}</td>
-        <td>{{ "%.4f"|format(link.p_value) }}</td>
-      </tr>
-      {% endfor %}
-    </table>
-    {% else %}
-    <p class="empty">No significant causal links found at p < 0.05.</p>
+  <!-- Summary Cards -->
+  <div class="cards">
+    {% if 'recovery_score' in df.columns %}
+    <div class="card green">
+      <div class="label">Avg Recovery</div>
+      <div class="value">{{ "%.0f"|format(df['recovery_score'].mean()) }}%</div>
+      <div class="unit">range {{ "%.0f"|format(df['recovery_score'].min()) }}-{{ "%.0f"|format(df['recovery_score'].max()) }}%</div>
+    </div>
+    {% endif %}
+    {% if 'strain' in df.columns %}
+    <div class="card orange">
+      <div class="label">Avg Strain</div>
+      <div class="value">{{ "%.1f"|format(df['strain'].mean()) }}</div>
+      <div class="unit">max {{ "%.1f"|format(df['strain'].max()) }}</div>
+    </div>
+    {% endif %}
+    {% if 'hrv_rmssd' in df.columns %}
+    <div class="card blue">
+      <div class="label">Avg HRV</div>
+      <div class="value">{{ "%.0f"|format(df['hrv_rmssd'].mean()) }}</div>
+      <div class="unit">ms rMSSD</div>
+    </div>
+    {% endif %}
+    {% if 'total_sleep_minutes' in df.columns %}
+    <div class="card purple">
+      <div class="label">Avg Sleep</div>
+      <div class="value">{{ "%.1f"|format(df['total_sleep_minutes'].mean() / 60) }}h</div>
+      <div class="unit">{{ "%.0f"|format(df['total_sleep_minutes'].mean()) }} min/night</div>
+    </div>
+    {% endif %}
+    {% if 'resting_hr' in df.columns %}
+    <div class="card red">
+      <div class="label">Resting HR</div>
+      <div class="value">{{ "%.0f"|format(df['resting_hr'].mean()) }}</div>
+      <div class="unit">bpm avg</div>
+    </div>
+    {% endif %}
+    {% if 'kilojoule' in df.columns %}
+    <div class="card orange">
+      <div class="label">Avg Calories</div>
+      <div class="value">{{ "%.0f"|format(df['kilojoule'].mean() * 0.239) }}</div>
+      <div class="unit">kcal/day</div>
+    </div>
     {% endif %}
   </div>
 
+  <!-- Charts -->
+  <div class="chart-grid">
+    {% if 'recovery_score' in df.columns or 'hrv_rmssd' in df.columns %}
+    <div class="chart-panel wide">
+      <h3>Recovery & Readiness</h3>
+      <div id="chart-recovery" style="height: 280px;"></div>
+    </div>
+    {% endif %}
+
+    {% if 'strain' in df.columns %}
+    <div class="chart-panel">
+      <h3>Strain & Energy</h3>
+      <div id="chart-strain" style="height: 250px;"></div>
+    </div>
+    {% endif %}
+
+    {% if 'average_heart_rate' in df.columns or 'resting_hr' in df.columns %}
+    <div class="chart-panel">
+      <h3>Heart Rate</h3>
+      <div id="chart-hr" style="height: 250px;"></div>
+    </div>
+    {% endif %}
+
+    {% if 'total_sleep_minutes' in df.columns or 'sws_minutes' in df.columns %}
+    <div class="chart-panel wide">
+      <h3>Sleep Architecture</h3>
+      <div id="chart-sleep" style="height: 280px;"></div>
+    </div>
+    {% endif %}
+
+    {% if 'caffeine' in df.columns or 'alcohol' in df.columns or 'stress' in df.columns %}
+    <div class="chart-panel wide">
+      <h3>Journal / Lifestyle Factors</h3>
+      <div id="chart-journal" style="height: 250px;"></div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Causal Links -->
   <div class="section">
-    <h2>Effect Estimates</h2>
+    <div class="section-header">
+      <h2>Causal Links</h2>
+      <span class="count">{{ links|length }} found</span>
+    </div>
+    {% if links %}
+    <div class="links-grid">
+      {% for link in links %}
+      <div class="link-card">
+        <div class="arrow">
+          <span class="src">{{ link.source }}</span>
+          <span class="sep">&xrarr;</span>
+          <span class="tgt">{{ link.target }}</span>
+        </div>
+        <div class="details">
+          <span>Lag: <strong>{{ link.lag }}d</strong></span>
+          <span>Strength: <strong>{{ "%.3f"|format(link.strength) }}</strong></span>
+          <span>p: <strong>{{ "%.4f"|format(link.p_value) }}</strong></span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty">No significant causal links found at p &lt; 0.05. Try collecting more days of data.</p>
+    {% endif %}
+  </div>
+
+  <!-- Effect Estimates -->
+  <div class="section">
+    <div class="section-header">
+      <h2>Effect Estimates</h2>
+      <span class="count">{{ effects|length }} estimated</span>
+    </div>
     {% if effects %}
     {% for e in effects %}
     <div class="effect-card {{ 'robust' if e.refutation_passed else 'uncertain' }}">
-      <h3>{{ e.source }} &rarr; {{ e.target }}
+      <div class="header">
+        <h3>{{ e.source }} &rarr; {{ e.target }}</h3>
         {% if e.refutation_passed %}
-        <span class="badge pass">ROBUST</span>
+        <span class="badge pass">Robust</span>
         {% else %}
-        <span class="badge fail">UNCERTAIN</span>
+        <span class="badge fail">Uncertain</span>
         {% endif %}
-      </h3>
+      </div>
       <div class="stats">
-        <span>ATE: {{ "%.4f"|format(e.ate) }}</span>
-        <span>Refutation p: {{ "%.3f"|format(e.refutation_p_value) if e.refutation_p_value else "N/A" }}</span>
-        <span>Method: {{ e.method }}</span>
+        <div class="stat">
+          <div class="val">{{ "%.4f"|format(e.ate) }}</div>
+          <div class="lbl">Avg Treatment Effect</div>
+        </div>
+        <div class="stat">
+          <div class="val">{{ "%.3f"|format(e.refutation_p_value) if e.refutation_p_value else "N/A" }}</div>
+          <div class="lbl">Refutation p-value</div>
+        </div>
+        <div class="stat">
+          <div class="val">{{ e.method }}</div>
+          <div class="lbl">Method</div>
+        </div>
       </div>
     </div>
     {% endfor %}
     {% else %}
-    <p class="empty">No effects estimated (requires causal links to be found first).</p>
+    <p class="empty">No effects estimated — requires causal links to be found first.</p>
     {% endif %}
   </div>
+
+  <!-- Debug -->
+  {% if debug_info %}
+  <details class="debug-toggle">
+    <summary>Debug info ({{ debug_info|length }} entries)</summary>
+    <pre>{% for d in debug_info %}{{ d }}
+{% endfor %}</pre>
+  </details>
+  {% endif %}
 </div>
 
 <script>
-const plotConfig = {responsive: true, displayModeBar: false};
-const darkLayout = {
+const cfg = {responsive: true, displayModeBar: false};
+const L = {
   paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-  font: {color: '#999'}, margin: {t: 32, b: 40, l: 50, r: 20},
-  xaxis: {gridcolor: '#222'}, yaxis: {gridcolor: '#222'},
+  font: {color: '#888', size: 11},
+  margin: {t: 8, b: 36, l: 48, r: 16},
+  xaxis: {gridcolor: '#1a1a3e', linecolor: '#1a1a3e'},
+  yaxis: {gridcolor: '#1a1a3e', linecolor: '#1a1a3e'},
+  legend: {orientation: 'h', y: 1.12, x: 0, font: {size: 10}},
+  hovermode: 'x unified',
 };
 
 {% if df is not none and not df.empty %}
 const dates = {{ df.index.strftime('%Y-%m-%d').tolist() | tojson }};
 
-{% if 'strain' in df.columns %}
-Plotly.newPlot('chart-hrv', [
-  {x: dates, y: {{ df['strain'].tolist() | tojson }}, name: 'Strain', type: 'scatter', line: {color: '#2196F3'}},
-  {% if 'average_heart_rate' in df.columns %}
-  {x: dates, y: {{ df['average_heart_rate'].tolist() | tojson }}, name: 'Avg HR', type: 'scatter', yaxis: 'y2', line: {color: '#FF5722'}},
+// Recovery & Readiness
+{% if 'recovery_score' in df.columns or 'hrv_rmssd' in df.columns %}
+{
+  const traces = [];
+  {% if 'recovery_score' in df.columns %}
+  traces.push({
+    x: dates, y: {{ df['recovery_score'].tolist() | tojson }},
+    name: 'Recovery %', type: 'scatter', mode: 'lines',
+    line: {color: '#4CAF50', width: 2},
+    fill: 'tozeroy', fillcolor: 'rgba(76,175,80,0.08)',
+  });
   {% endif %}
-], {...darkLayout, title: 'Daily Strain & Heart Rate', height: 300,
-    yaxis: {...darkLayout.yaxis, title: 'Strain'},
-    yaxis2: {title: 'Avg HR (bpm)', overlaying: 'y', side: 'right', gridcolor: '#222', font: {color: '#999'}},
-}, plotConfig);
-{% elif 'hrv_rmssd' in df.columns %}
-Plotly.newPlot('chart-hrv', [
-  {x: dates, y: {{ df['hrv_rmssd'].tolist() | tojson }}, name: 'HRV (rMSSD)', type: 'scatter', line: {color: '#2196F3'}},
-  {% if 'resting_hr' in df.columns %}
-  {x: dates, y: {{ df['resting_hr'].tolist() | tojson }}, name: 'Resting HR', type: 'scatter', yaxis: 'y2', line: {color: '#FF5722'}},
-  {% endif %}
-], {...darkLayout, title: 'HRV & Resting Heart Rate', height: 300,
-    yaxis: {...darkLayout.yaxis, title: 'HRV (ms)'},
-    yaxis2: {title: 'HR (bpm)', overlaying: 'y', side: 'right', gridcolor: '#222', font: {color: '#999'}},
-}, plotConfig);
-{% endif %}
-
-{% if 'kilojoule' in df.columns %}
-Plotly.newPlot('chart-sleep', [
-  {x: dates, y: {{ df['kilojoule'].tolist() | tojson }}, name: 'Energy (kJ)', type: 'bar', marker: {color: '#3F51B5'}},
-], {...darkLayout, title: 'Daily Energy Expenditure', height: 300,
-    yaxis: {...darkLayout.yaxis, title: 'Kilojoules'},
-}, plotConfig);
-{% elif 'sws_minutes' in df.columns %}
-Plotly.newPlot('chart-sleep', [
-  {x: dates, y: {{ df['sws_minutes'].tolist() | tojson }}, name: 'Deep (SWS)', type: 'bar', marker: {color: '#3F51B5'}},
-  {x: dates, y: {{ df['rem_minutes'].tolist() | tojson }}, name: 'REM', type: 'bar', marker: {color: '#9C27B0'}},
-  {x: dates, y: {{ df['light_minutes'].tolist() | tojson }}, name: 'Light', type: 'bar', marker: {color: '#00BCD4'}},
-], {...darkLayout, title: 'Sleep Stages', barmode: 'stack', height: 300,
-    yaxis: {...darkLayout.yaxis, title: 'Minutes'},
-}, plotConfig);
-{% endif %}
-
-{% if 'recovery_score' in df.columns %}
-Plotly.newPlot('chart-fog', [
-  {x: dates, y: {{ df['recovery_score'].tolist() | tojson }}, name: 'Recovery %', type: 'scatter', mode: 'lines+markers', line: {color: '#4CAF50'}, marker: {size: 5}},
   {% if 'hrv_rmssd' in df.columns %}
-  {x: dates, y: {{ df['hrv_rmssd'].tolist() | tojson }}, name: 'HRV (rMSSD)', type: 'scatter', yaxis: 'y2', line: {color: '#2196F3'}},
+  traces.push({
+    x: dates, y: {{ df['hrv_rmssd'].tolist() | tojson }},
+    name: 'HRV (rMSSD)', type: 'scatter', mode: 'lines',
+    line: {color: '#2196F3', width: 2}, yaxis: 'y2',
+  });
   {% endif %}
-], {...darkLayout, title: 'Recovery & HRV', height: 300,
-    yaxis: {...darkLayout.yaxis, title: 'Recovery %'},
-    yaxis2: {title: 'HRV (ms)', overlaying: 'y', side: 'right', gridcolor: '#222', font: {color: '#999'}},
-}, plotConfig);
-{% elif 'max_heart_rate' in df.columns %}
-Plotly.newPlot('chart-fog', [
-  {x: dates, y: {{ df['max_heart_rate'].tolist() | tojson }}, name: 'Max HR', type: 'scatter', mode: 'lines+markers', line: {color: '#F44336'}, marker: {size: 5}},
-], {...darkLayout, title: 'Max Heart Rate', height: 250,
-    yaxis: {...darkLayout.yaxis, title: 'BPM'},
-}, plotConfig);
+  Plotly.newPlot('chart-recovery', traces, {
+    ...L, height: 280,
+    yaxis: {...L.yaxis, title: {text: 'Recovery %', font: {size: 10}}},
+    yaxis2: {title: {text: 'HRV (ms)', font: {size: 10}}, overlaying: 'y', side: 'right', gridcolor: '#1a1a3e'},
+  }, cfg);
+}
+{% endif %}
+
+// Strain & Energy
+{% if 'strain' in df.columns %}
+{
+  const traces = [
+    {x: dates, y: {{ df['strain'].tolist() | tojson }}, name: 'Strain', type: 'bar', marker: {color: 'rgba(255,152,0,0.7)', line: {width: 0}}},
+  ];
+  {% if 'kilojoule' in df.columns %}
+  traces.push({
+    x: dates, y: {{ df['kilojoule'].tolist() | tojson }},
+    name: 'Energy (kJ)', type: 'scatter', mode: 'lines', yaxis: 'y2',
+    line: {color: '#FF5722', width: 1.5, dash: 'dot'},
+  });
+  {% endif %}
+  Plotly.newPlot('chart-strain', traces, {
+    ...L, height: 250,
+    yaxis: {...L.yaxis, title: {text: 'Strain', font: {size: 10}}},
+    yaxis2: {title: {text: 'kJ', font: {size: 10}}, overlaying: 'y', side: 'right', gridcolor: '#1a1a3e'},
+  }, cfg);
+}
+{% endif %}
+
+// Heart Rate
+{% if 'average_heart_rate' in df.columns or 'resting_hr' in df.columns %}
+{
+  const traces = [];
+  {% if 'resting_hr' in df.columns %}
+  traces.push({
+    x: dates, y: {{ df['resting_hr'].tolist() | tojson }},
+    name: 'Resting', type: 'scatter', mode: 'lines',
+    line: {color: '#E91E63', width: 2},
+    fill: 'tozeroy', fillcolor: 'rgba(233,30,99,0.05)',
+  });
+  {% endif %}
+  {% if 'average_heart_rate' in df.columns %}
+  traces.push({
+    x: dates, y: {{ df['average_heart_rate'].tolist() | tojson }},
+    name: 'Average', type: 'scatter', mode: 'lines',
+    line: {color: '#FF5722', width: 1.5},
+  });
+  {% endif %}
+  {% if 'max_heart_rate' in df.columns %}
+  traces.push({
+    x: dates, y: {{ df['max_heart_rate'].tolist() | tojson }},
+    name: 'Max', type: 'scatter', mode: 'lines',
+    line: {color: '#F44336', width: 1, dash: 'dot'},
+  });
+  {% endif %}
+  Plotly.newPlot('chart-hr', traces, {
+    ...L, height: 250,
+    yaxis: {...L.yaxis, title: {text: 'BPM', font: {size: 10}}},
+  }, cfg);
+}
+{% endif %}
+
+// Sleep Architecture
+{% if 'total_sleep_minutes' in df.columns or 'sws_minutes' in df.columns %}
+{
+  const traces = [];
+  {% if 'sws_minutes' in df.columns %}
+  traces.push({x: dates, y: {{ df['sws_minutes'].tolist() | tojson }}, name: 'Deep (SWS)', type: 'bar', marker: {color: '#1A237E'}});
+  traces.push({x: dates, y: {{ df['rem_minutes'].tolist() | tojson }}, name: 'REM', type: 'bar', marker: {color: '#4A148C'}});
+  traces.push({x: dates, y: {{ df['light_minutes'].tolist() | tojson }}, name: 'Light', type: 'bar', marker: {color: '#006064'}});
+  {% elif 'total_sleep_minutes' in df.columns %}
+  traces.push({
+    x: dates, y: {{ df['total_sleep_minutes'].tolist() | tojson }},
+    name: 'Total Sleep', type: 'bar', marker: {color: 'rgba(103,58,183,0.7)'},
+  });
+  {% endif %}
+  {% if 'sleep_efficiency' in df.columns %}
+  traces.push({
+    x: dates, y: {{ df['sleep_efficiency'].tolist() | tojson }},
+    name: 'Efficiency %', type: 'scatter', mode: 'lines', yaxis: 'y2',
+    line: {color: '#00BCD4', width: 1.5},
+  });
+  {% endif %}
+  Plotly.newPlot('chart-sleep', traces, {
+    ...L, height: 280, barmode: 'stack',
+    yaxis: {...L.yaxis, title: {text: 'Minutes', font: {size: 10}}},
+    yaxis2: {title: {text: 'Efficiency %', font: {size: 10}}, overlaying: 'y', side: 'right', gridcolor: '#1a1a3e', range: [70, 100]},
+  }, cfg);
+}
+{% endif %}
+
+// Journal / Lifestyle
+{% if 'caffeine' in df.columns or 'alcohol' in df.columns or 'stress' in df.columns %}
+{
+  const traces = [];
+  {% if 'caffeine' in df.columns %}
+  traces.push({x: dates, y: {{ df['caffeine'].tolist() | tojson }}, name: 'Caffeine', type: 'scatter', mode: 'lines+markers', line: {color: '#795548', width: 2}, marker: {size: 4}});
+  {% endif %}
+  {% if 'alcohol' in df.columns %}
+  traces.push({x: dates, y: {{ df['alcohol'].tolist() | tojson }}, name: 'Alcohol', type: 'scatter', mode: 'lines+markers', line: {color: '#FF9800', width: 2}, marker: {size: 4}});
+  {% endif %}
+  {% if 'stress' in df.columns %}
+  traces.push({x: dates, y: {{ df['stress'].tolist() | tojson }}, name: 'Stress', type: 'scatter', mode: 'lines+markers', line: {color: '#F44336', width: 2}, marker: {size: 4}});
+  {% endif %}
+  Plotly.newPlot('chart-journal', traces, {
+    ...L, height: 250,
+    yaxis: {...L.yaxis, title: {text: 'Level', font: {size: 10}}},
+  }, cfg);
+}
 {% endif %}
 
 {% endif %}
