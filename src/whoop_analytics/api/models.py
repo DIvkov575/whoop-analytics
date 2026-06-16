@@ -86,13 +86,13 @@ class RecoveryRecord:
 
     @classmethod
     def from_api(cls, data: dict) -> RecoveryRecord:
-        score = data["score"]
+        score = data.get("score") or {}
         return cls(
-            cycle_id=data["cycle_id"],
-            created_at=_parse_dt(data["created_at"]),
-            recovery_score=score["recovery_score"],
-            hrv_rmssd=score["hrv_rmssd_milli"],
-            resting_hr=score["resting_heart_rate"],
+            cycle_id=data.get("cycle_id", 0),
+            created_at=_parse_dt(data.get("created_at", data.get("updated_at", "2000-01-01T00:00:00Z"))),
+            recovery_score=score.get("recovery_score", 0),
+            hrv_rmssd=score.get("hrv_rmssd_milli", 0),
+            resting_hr=score.get("resting_heart_rate", 0),
             spo2=score.get("spo2_percentage"),
             skin_temp=score.get("skin_temp_celsius"),
         )

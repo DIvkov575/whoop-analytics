@@ -40,7 +40,7 @@
   </div>
 </nav>
 <div class="content">
-  <p class="meta">{{ n_obs }} observations &middot; {{ date_start }} to {{ date_end }}</p>
+  <p class="meta">{{ n_obs }} observations &middot; {{ date_start }} to {{ date_end }}{% if target %} &middot; causal target: <strong>{{ target }}</strong>{% endif %}</p>
 
   <div class="section">
     <h2>Health Metrics</h2>
@@ -143,17 +143,21 @@ Plotly.newPlot('chart-sleep', [
 }, plotConfig);
 {% endif %}
 
-{% if 'max_heart_rate' in df.columns %}
+{% if 'recovery_score' in df.columns %}
+Plotly.newPlot('chart-fog', [
+  {x: dates, y: {{ df['recovery_score'].tolist() | tojson }}, name: 'Recovery %', type: 'scatter', mode: 'lines+markers', line: {color: '#4CAF50'}, marker: {size: 5}},
+  {% if 'hrv_rmssd' in df.columns %}
+  {x: dates, y: {{ df['hrv_rmssd'].tolist() | tojson }}, name: 'HRV (rMSSD)', type: 'scatter', yaxis: 'y2', line: {color: '#2196F3'}},
+  {% endif %}
+], {...darkLayout, title: 'Recovery & HRV', height: 300,
+    yaxis: {...darkLayout.yaxis, title: 'Recovery %'},
+    yaxis2: {title: 'HRV (ms)', overlaying: 'y', side: 'right', gridcolor: '#222', font: {color: '#999'}},
+}, plotConfig);
+{% elif 'max_heart_rate' in df.columns %}
 Plotly.newPlot('chart-fog', [
   {x: dates, y: {{ df['max_heart_rate'].tolist() | tojson }}, name: 'Max HR', type: 'scatter', mode: 'lines+markers', line: {color: '#F44336'}, marker: {size: 5}},
 ], {...darkLayout, title: 'Max Heart Rate', height: 250,
     yaxis: {...darkLayout.yaxis, title: 'BPM'},
-}, plotConfig);
-{% elif 'brain_fog' in df.columns %}
-Plotly.newPlot('chart-fog', [
-  {x: dates, y: {{ df['brain_fog'].tolist() | tojson }}, name: 'Brain Fog', type: 'scatter', mode: 'lines+markers', line: {color: '#F44336'}, marker: {size: 5}},
-], {...darkLayout, title: 'Brain Fog Score', height: 250,
-    yaxis: {...darkLayout.yaxis, title: 'Score'},
 }, plotConfig);
 {% endif %}
 

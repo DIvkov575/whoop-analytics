@@ -66,25 +66,13 @@ def debug_api(request: Request):
     results = {}
 
     endpoints = [
-        "/v1/cycle",
-        "/v1/cycle?limit=1",
+        "/v2/cycle",
+        "/v2/activity/sleep",
+        "/v2/recovery",
+        "/v2/activity/workout",
+        "/v2/user/profile/basic",
+        "/v2/user/measurement/body",
     ]
-
-    # Also get a single cycle ID and try sub-resources
-    try:
-        r = httpx.get(f"{WHOOP_API_BASE}/v1/cycle", headers=headers, timeout=10)
-        if r.status_code == 200:
-            records = r.json().get("records", [])
-            if records:
-                cid = records[0]["id"]
-                endpoints += [
-                    f"/v1/cycle/{cid}",
-                    f"/v1/cycle/{cid}/sleep",
-                    f"/v1/cycle/{cid}/recovery",
-                    f"/v1/recovery/{cid}",
-                ]
-    except Exception:
-        pass
 
     for ep in endpoints:
         url = f"{WHOOP_API_BASE}{ep}"
@@ -228,16 +216,15 @@ def _do_analyze(request: Request, store: dict, token: str):
     debug_info = []
 
     # Verify token works by hitting profile endpoint
-    profile_resp = httpx.get(f"{WHOOP_API_BASE}/v1/user/profile/basic", headers=headers, timeout=10)
+    profile_resp = httpx.get(f"{WHOOP_API_BASE}/v2/user/profile/basic", headers=headers, timeout=10)
     debug_info.append(f"profile check: {profile_resp.status_code}")
     if profile_resp.status_code == 401:
         return templates.TemplateResponse(request=request, name="dashboard.html", context={
             "has_data": False, "error": "Access token expired. Please reconnect your Whoop account.",
         })
 
-    # Try with params first, then without if 404
-    # Fetch cycles (the only data endpoint that works)
-    cycle_records = _try_fetch(f"{WHOOP_API_BASE}/v1/cycle", {}, headers, debug_info, "cycles")
+    # Fetch cycles
+    cycle_records = _try_fetch(f"{WHOOP_API_BASE}/v2/cycle", {}, headers, debug_info, "cycles")
 
     if cycle_records:
         rows = []
@@ -267,26 +254,37 @@ def _do_analyze(request: Request, store: dict, token: str):
             pd.DataFrame(rows).to_parquet(raw_dir / "sleep.parquet", index=False)
             debug_info.append(f"wrote {len(rows)} cycle rows as sleep.parquet")
 
-    # Try sleep/recovery in case they start working
-    sleep_records = _try_fetch(f"{WHOOP_API_BASE}/v1/activity/sleep", {}, headers, debug_info, "sleep")
+    # Fetch sleep and recovery (v2 endpoints)
+    sleep_records = _try_fetch(f"{WHOOP_API_BASE}/v2/activity/sleep", {}, headers, debug_info, "sleep")
     if sleep_records:
         parsed = [SleepRecord.from_api(r) for r in sleep_records]
         pd.DataFrame([asdict(r) for r in parsed]).to_parquet(raw_dir / "sleep.parquet", index=False)
 
-    recovery_records = _try_fetch(f"{WHOOP_API_BASE}/v1/recovery", {}, headers, debug_info, "recovery")
+    recovery_records = _try_fetch(f"{WHOOP_API_BASE}/v2/recovery", {}, headers, debug_info, "recovery")
     if recovery_records:
         parsed = [RecoveryRecord.from_api(r) for r in recovery_records]
         pd.DataFrame([asdict(r) for r in parsed]).to_parquet(raw_dir / "recovery.parquet", index=False)
 
-    journal_records = _try_fetch(f"{WHOOP_API_BASE}/v1/journal/entry", {}, headers, debug_info, "journal")
-    if journal_records:
+    # Fetch workouts
+    workout_records = _try_fetch(f"{WHOOP_API_BASE}/v2/activity/workout", {}, headers, debug_info, "workouts")
+    if workout_records:
         rows = []
-        for entry in journal_records:
-            row = {"id": entry["id"], "created_at": entry["created_at"]}
-            for answer in entry.get("answers", []):
-                row[answer["text"]] = answer["value"]
-            rows.append(row)
-        pd.DataFrame(rows).to_parquet(raw_dir / "journal.parquet", index=False)
+        for w in workout_records:
+            score = w.get("score") or {}
+            rows.append({
+                "id": w["id"],
+                "start": w.get("start"),
+                "end": w.get("end"),
+                "sport_id": w.get("sport_id"),
+                "strain": score.get("strain"),
+                "average_heart_rate": score.get("average_heart_rate"),
+                "max_heart_rate": score.get("max_heart_rate"),
+                "kilojoule": score.get("kilojoule"),
+                "distance_meter": score.get("distance_meter"),
+            })
+        if rows:
+            pd.DataFrame(rows).to_parquet(raw_dir / "workouts.parquet", index=False)
+            debug_info.append(f"wrote {len(rows)} workout rows")
 
     df = build_daily_dataset(data_dir)
     debug_info.append(f"daily_df shape: {df.shape}")
@@ -309,26 +307,35 @@ def _do_analyze(request: Request, store: dict, token: str):
             "error": msg,
         })
 
-    target = "brain_fog"
-    feature_cols = [c for c in df.columns if c != target]
-    df = add_lag_features(df, columns=feature_cols, lags=[1, 2])
-    df = add_rolling_features(df, columns=feature_cols, windows=[3, 7])
-    df = df.dropna()
+    # Pick best available target for causal analysis
+    target_priority = ["hrv_rmssd", "recovery_score", "strain", "average_heart_rate"]
+    target = None
+    for t in target_priority:
+        if t in df.columns:
+            target = t
+            break
 
     links = []
     effects = []
-    if len(df) >= 30 and target in df.columns:
-        discovery = CausalDiscovery(max_lag=3, significance_level=0.05)
-        result = discovery.run(df, target=target)
-        links = result.links
+    if target:
+        feature_cols = [c for c in df.columns if c != target]
+        df = add_lag_features(df, columns=feature_cols, lags=[1, 2])
+        df = add_rolling_features(df, columns=feature_cols, windows=[3, 7])
+        df = df.dropna()
+        debug_info.append(f"after feature eng: {df.shape}, target={target}")
 
-        if links:
-            estimator = EffectEstimator()
-            for link in links:
-                if link.source == target:
-                    continue
-                effect = estimator.estimate(df=df, link=link, common_causes=[])
-                effects.append(effect)
+        if len(df) >= 10:
+            discovery = CausalDiscovery(max_lag=3, significance_level=0.05)
+            result = discovery.run(df, target=target)
+            links = result.links
+
+            if links:
+                estimator = EffectEstimator()
+                for link in links:
+                    if link.source == target:
+                        continue
+                    effect = estimator.estimate(df=df, link=link, common_causes=[])
+                    effects.append(effect)
 
     store["has_analysis"] = True
     df = df.fillna(0)
@@ -337,9 +344,11 @@ def _do_analyze(request: Request, store: dict, token: str):
         "df": df,
         "links": links,
         "effects": effects,
+        "target": target,
         "n_obs": len(df),
         "date_start": df.index[0].strftime("%Y-%m-%d") if not df.empty else "",
         "date_end": df.index[-1].strftime("%Y-%m-%d") if not df.empty else "",
+        "debug_info": debug_info,
     })
 
 

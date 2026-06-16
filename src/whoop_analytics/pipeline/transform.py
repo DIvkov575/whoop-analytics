@@ -59,7 +59,7 @@ def _load_recovery(raw_dir: Path) -> pd.DataFrame | None:
     df["created_at"] = pd.to_datetime(df["created_at"])
     df["date"] = df["created_at"].dt.normalize()
     df = df.set_index("date")
-    df = df.drop(columns=["cycle_id", "created_at", "recovery_score"], errors="ignore")
+    df = df.drop(columns=["cycle_id", "created_at"], errors="ignore")
     return df
 
 
