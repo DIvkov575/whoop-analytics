@@ -24,7 +24,7 @@ import pandas as pd
 WHOOP_AUTH_URL = "https://api.prod.whoop.com/oauth/oauth2/auth"
 WHOOP_TOKEN_URL = "https://api.prod.whoop.com/oauth/oauth2/token"
 WHOOP_API_BASE = "https://api.prod.whoop.com/developer"
-SCOPES = "read:recovery read:cycles read:sleep read:workout read:profile read:body_measurement"
+SCOPES = "read:recovery read:cycles read:sleep read:workout read:profile read:body_measurement read:journal"
 
 # Server-side session store (avoids cookie size limits)
 _sessions: dict[str, dict] = {}
@@ -70,6 +70,7 @@ def debug_api(request: Request):
         "/v2/activity/sleep",
         "/v2/recovery",
         "/v2/activity/workout",
+        "/v2/journal",
         "/v2/user/profile/basic",
         "/v2/user/measurement/body",
     ]
@@ -286,6 +287,27 @@ def _do_analyze(request: Request, store: dict, token: str):
             pd.DataFrame(rows).to_parquet(raw_dir / "workouts.parquet", index=False)
             debug_info.append(f"wrote {len(rows)} workout rows")
 
+    # Fetch journal (lifestyle factors: caffeine, alcohol, stress, etc.)
+    journal_records = _try_fetch(f"{WHOOP_API_BASE}/v2/journal", {}, headers, debug_info, "journal")
+    if journal_records:
+        rows = []
+        for j in journal_records:
+            row = {"id": j["id"], "created_at": j.get("created_at", j.get("updated_at", ""))}
+            for answer in j.get("answers", []):
+                row[answer["text"]] = answer["value"]
+            rows.append(row)
+        if rows:
+            pd.DataFrame(rows).to_parquet(raw_dir / "journal.parquet", index=False)
+            debug_info.append(f"wrote {len(rows)} journal rows")
+
+    # Fetch body measurements
+    body_resp = _try_fetch_single(f"{WHOOP_API_BASE}/v2/user/measurement/body", headers, debug_info, "body")
+    if body_resp:
+        body_file = raw_dir / "body.json"
+        import json
+        body_file.write_text(json.dumps(body_resp))
+        debug_info.append(f"wrote body measurements")
+
     df = build_daily_dataset(data_dir)
     debug_info.append(f"daily_df shape: {df.shape}")
     debug_info.append(f"daily_df columns: {list(df.columns)[:10]}")
@@ -368,6 +390,19 @@ def _try_fetch(url: str, params: dict, headers: dict, debug_info: list, label: s
     except ValueError as e:
         debug_info.append(f"{label}: ERROR - {e}")
         return []
+
+
+def _try_fetch_single(url: str, headers: dict, debug_info: list, label: str) -> dict | None:
+    try:
+        response = httpx.get(url, headers=headers, timeout=10)
+        if response.status_code != 200:
+            debug_info.append(f"{label}: ERROR - HTTP {response.status_code}")
+            return None
+        debug_info.append(f"{label}: OK")
+        return response.json()
+    except Exception as e:
+        debug_info.append(f"{label}: ERROR - {e}")
+        return None
 
 
 def _fetch_paginated(url: str, params: dict, headers: dict) -> list[dict]:

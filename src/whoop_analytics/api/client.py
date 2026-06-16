@@ -67,17 +67,17 @@ class WhoopClient:
         )
 
     def get_sleep_records(self, start_date: str, end_date: str) -> list[SleepRecord]:
-        raw = self._get_paginated("/v1/activity/sleep", {"start": start_date, "end": end_date})
+        raw = self._get_paginated("/v2/activity/sleep", {"start": start_date, "end": end_date})
         return [SleepRecord.from_api(r) for r in raw]
 
     def get_recovery_records(self, start_date: str, end_date: str) -> list[RecoveryRecord]:
-        raw = self._get_paginated("/v1/recovery", {"start": start_date, "end": end_date})
+        raw = self._get_paginated("/v2/recovery", {"start": start_date, "end": end_date})
         return [RecoveryRecord.from_api(r) for r in raw]
 
     def get_journal_entries(self, start_date: str, end_date: str) -> list[JournalEntry]:
-        raw = self._get_paginated("/v1/journal", {"start": start_date, "end": end_date})
+        raw = self._get_paginated("/v2/journal", {"start": start_date, "end": end_date})
         return [JournalEntry.from_api(r) for r in raw]
 
     def get_cycles(self, start_date: str, end_date: str) -> list[CycleRecord]:
-        raw = self._get_paginated("/v1/cycle", {"start": start_date, "end": end_date})
+        raw = self._get_paginated("/v2/cycle", {"start": start_date, "end": end_date})
         return [CycleRecord.from_api(r) for r in raw]

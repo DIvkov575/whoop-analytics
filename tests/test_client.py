@@ -34,7 +34,7 @@ def client(token_file):
 
 @respx.mock
 def test_client_fetches_sleep_records(client):
-    respx.get("https://api.prod.whoop.com/developer/v1/activity/sleep").mock(
+    respx.get("https://api.prod.whoop.com/developer/v2/activity/sleep").mock(
         return_value=httpx.Response(200, json={
             "records": [
                 {
@@ -78,7 +78,7 @@ def test_client_fetches_sleep_records(client):
 
 @respx.mock
 def test_client_paginates(client):
-    respx.get("https://api.prod.whoop.com/developer/v1/activity/sleep").mock(
+    respx.get("https://api.prod.whoop.com/developer/v2/activity/sleep").mock(
         side_effect=[
             httpx.Response(200, json={
                 "records": [{"id": 1, "user_id": 99, "created_at": "2026-01-15T07:30:00.000Z", "updated_at": "2026-01-15T07:30:00.000Z", "start": "2026-01-14T22:00:00.000Z", "end": "2026-01-15T06:00:00.000Z", "timezone_offset": "-05:00", "nap": False, "score": None}],
@@ -109,7 +109,7 @@ def test_client_respects_rate_limit(client):
             return httpx.Response(429, headers={"Retry-After": "0"})
         return httpx.Response(200, json={"records": [], "next_token": None})
 
-    respx.get("https://api.prod.whoop.com/developer/v1/activity/sleep").mock(side_effect=rate_limited)
+    respx.get("https://api.prod.whoop.com/developer/v2/activity/sleep").mock(side_effect=rate_limited)
 
     records = client.get_sleep_records(start_date="2026-01-14", end_date="2026-01-15")
 
