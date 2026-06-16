@@ -58,10 +58,8 @@ def _load_cached_tokens(token_file: Path = None) -> dict | None:
 def _refresh_cached_tokens(token_file: Path = None) -> str | None:
     path = token_file or TOKEN_CACHE_PATH
     data = _load_cached_tokens(token_file=path)
-    if not data:
-        return None
 
-    refresh_token = data.get("refresh_token") or os.environ.get("WHOOP_REFRESH_TOKEN", "")
+    refresh_token = (data or {}).get("refresh_token") or os.environ.get("WHOOP_REFRESH_TOKEN", "")
     if not refresh_token:
         return None
 
@@ -72,6 +70,15 @@ def _refresh_cached_tokens(token_file: Path = None) -> str | None:
             "client_id": _client_id(),
             "client_secret": _client_secret(),
         }, timeout=10)
+        if response.status_code == 429:
+            retry_after = int(response.headers.get("Retry-After", "2"))
+            time.sleep(retry_after)
+            response = httpx.post(WHOOP_TOKEN_URL, data={
+                "grant_type": "refresh_token",
+                "refresh_token": refresh_token,
+                "client_id": _client_id(),
+                "client_secret": _client_secret(),
+            }, timeout=10)
         if response.status_code != 200:
             return None
         body = response.json()
@@ -85,7 +92,22 @@ def _refresh_cached_tokens(token_file: Path = None) -> str | None:
     except Exception:
         return None
 
+_cached_access_token: str | None = None
+
 app = FastAPI(title="Whoop Causal Analytics")
+
+
+@app.on_event("startup")
+def _warm_token_cache():
+    """Refresh tokens once at startup so _get_store never blocks on HTTP."""
+    global _cached_access_token
+    cached = _load_cached_tokens()
+    if cached and cached.get("expires_at", 0) > time.time():
+        _cached_access_token = cached.get("access_token")
+        return
+    token = _refresh_cached_tokens()
+    if token:
+        _cached_access_token = token
 
 
 @app.exception_handler(Exception)
@@ -163,40 +185,11 @@ def _get_store(request: Request) -> dict:
         sid = secrets.token_urlsafe(16)
         request.session["sid"] = sid
         _sessions[sid] = {}
-        # Try to restore from cached tokens
-        cached = _load_cached_tokens()
-        if cached:
-            if cached.get("expires_at", 0) > time.time():
-                _sessions[sid]["access_token"] = cached["access_token"]
-                _sessions[sid]["refresh_token"] = cached.get("refresh_token", "")
-            elif cached.get("refresh_token"):
-                new_token = _refresh_cached_tokens()
-                if new_token:
-                    _sessions[sid]["access_token"] = new_token
-                    refreshed = _load_cached_tokens()
-                    _sessions[sid]["refresh_token"] = refreshed.get("refresh_token", "")
-        # If still no token, try bootstrapping from env var
-        if "access_token" not in _sessions[sid]:
-            env_refresh = os.environ.get("WHOOP_REFRESH_TOKEN", "")
-            if env_refresh:
-                try:
-                    response = httpx.post(WHOOP_TOKEN_URL, data={
-                        "grant_type": "refresh_token",
-                        "refresh_token": env_refresh,
-                        "client_id": _client_id(),
-                        "client_secret": _client_secret(),
-                    }, timeout=10)
-                    if response.status_code == 200:
-                        body = response.json()
-                        _sessions[sid]["access_token"] = body["access_token"]
-                        _sessions[sid]["refresh_token"] = body.get("refresh_token", env_refresh)
-                        _save_cached_tokens(
-                            access_token=body["access_token"],
-                            refresh_token=body.get("refresh_token", env_refresh),
-                            expires_in=body.get("expires_in", 3600),
-                        )
-                except Exception:
-                    pass
+        # Restore from startup-warmed token (no HTTP on request path)
+        if _cached_access_token:
+            _sessions[sid]["access_token"] = _cached_access_token
+            cached = _load_cached_tokens()
+            _sessions[sid]["refresh_token"] = (cached or {}).get("refresh_token", "")
     return _sessions[sid]
 
 
@@ -399,7 +392,8 @@ def _do_analyze(request: Request, store: dict, token: str):
         for j in journal_records:
             row = {"id": j["id"], "created_at": j.get("created_at", j.get("updated_at", ""))}
             for answer in j.get("answers", []):
-                row[answer["text"]] = answer["value"]
+                if "text" in answer and "value" in answer:
+                    row[answer["text"]] = answer["value"]
             rows.append(row)
         if rows:
             pd.DataFrame(rows).to_parquet(raw_dir / "journal.parquet", index=False)
