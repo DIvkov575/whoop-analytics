@@ -606,37 +606,33 @@ def _compute_insights(df: pd.DataFrame) -> dict:
                 "recovery": df["recovery_score"][valid].tolist(),
             }
 
-    # Sleep drivers: correlate everything with sleep (same-day + lagged)
-    sleep_col = "total_sleep_minutes" if "total_sleep_minutes" in df.columns else None
-    if not sleep_col and "sleep_efficiency" in df.columns:
-        sleep_col = "sleep_efficiency"
-    if sleep_col:
+    # Sleep quality drivers: correlate every raw metric against sleep quality
+    sleep_quality_col = None
+    for candidate in ["sleep_efficiency", "sws_minutes", "total_sleep_minutes"]:
+        if candidate in df.columns:
+            sleep_quality_col = candidate
+            break
+    if sleep_quality_col:
+        from scipy import stats
         drivers = []
-        exclude = {sleep_col, "sws_minutes", "rem_minutes", "light_minutes"}
         for col in df.columns:
-            if col in exclude or col.endswith(("_lag1", "_lag2", "_roll3_mean", "_roll3_std", "_roll7_mean", "_roll7_std")):
+            if col == sleep_quality_col:
                 continue
-            valid = df[[sleep_col, col]].dropna()
-            if len(valid) < 10:
+            # Skip engineered features — only raw data from Whoop
+            if any(col.endswith(s) for s in ("_lag1", "_lag2", "_roll3_mean", "_roll3_std", "_roll7_mean", "_roll7_std")):
                 continue
-            from scipy import stats
-            r, p = stats.pearsonr(valid[col], valid[sleep_col])
-            if abs(r) > 0.05:
-                drivers.append({"name": col.replace("_", " ").title(), "r": float(r), "p": float(p)})
-        # Also check lagged versions (yesterday's X → tonight's sleep)
-        for col in df.columns:
-            if not col.endswith("_lag1") or col.replace("_lag1", "") in exclude:
+            valid = df[[sleep_quality_col, col]].dropna()
+            if len(valid) < 5:
                 continue
-            valid = df[[sleep_col, col]].dropna()
-            if len(valid) < 10:
-                continue
-            r, p = stats.pearsonr(valid[col], valid[sleep_col])
-            if abs(r) > 0.05:
-                base_name = col.replace("_lag1", "").replace("_", " ").title()
-                drivers.append({"name": f"{base_name} (prev day)", "r": float(r), "p": float(p)})
+            r, p = stats.pearsonr(valid[col], valid[sleep_quality_col])
+            name = col.replace("_", " ").title()
+            direction = "improves" if r > 0 else "worsens"
+            strength = "strongly" if abs(r) > 0.4 else "moderately" if abs(r) > 0.25 else "slightly"
+            drivers.append({"name": name, "r": float(r), "p": float(p), "direction": direction, "strength": strength})
         if drivers:
             drivers.sort(key=lambda d: abs(d["r"]), reverse=True)
-            insights["sleep_drivers"] = drivers[:15]
+            insights["sleep_drivers"] = drivers
+            insights["sleep_quality_metric"] = sleep_quality_col.replace("_", " ").title()
 
     return insights
 

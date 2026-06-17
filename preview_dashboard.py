@@ -43,9 +43,25 @@ df = pd.DataFrame({
     "sleep_efficiency": np.random.uniform(80, 98, 60),
     "respiratory_rate": np.random.uniform(13, 17, 60),
     "spo2": np.random.uniform(94, 99, 60),
+    # Journal / Health Monitor entries (all Whoop survey questions)
     "caffeine": np.random.randint(0, 4, 60),
     "alcohol": np.random.randint(0, 3, 60),
     "stress": np.random.randint(0, 4, 60),
+    "melatonin": np.random.randint(0, 2, 60),
+    "sleep_aid": np.random.randint(0, 2, 60),
+    "cbd": np.random.randint(0, 2, 60),
+    "magnesium": np.random.randint(0, 2, 60),
+    "screen_time_before_bed": np.random.randint(0, 4, 60),
+    "late_meal": np.random.randint(0, 2, 60),
+    "hydration": np.random.randint(0, 4, 60),
+    "meditation": np.random.randint(0, 2, 60),
+    "reading": np.random.randint(0, 2, 60),
+    "cold_exposure": np.random.randint(0, 2, 60),
+    "sauna": np.random.randint(0, 2, 60),
+    "nap": np.random.randint(0, 2, 60),
+    "sick": np.random.randint(0, 2, 60),
+    "travel": np.random.randint(0, 2, 60),
+    "menstrual_cycle": np.random.randint(0, 4, 60),
 }, index=dates)
 
 links = [
@@ -64,6 +80,13 @@ effects = [
 ]
 
 from whoop_analytics.web.app import _compute_insights
+from whoop_analytics.pipeline.features import add_lag_features, add_rolling_features
+
+feature_cols = [c for c in df.columns]
+df = add_lag_features(df, columns=feature_cols, lags=[1, 2])
+df = add_rolling_features(df, columns=feature_cols, windows=[3, 7])
+df = df.dropna()
+df = df.fillna(0)
 
 insights = _compute_insights(df)
 

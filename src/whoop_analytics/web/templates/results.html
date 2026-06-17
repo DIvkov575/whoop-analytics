@@ -91,6 +91,18 @@
 
   .empty { font-size: 15px; color: var(--text-dim); padding: 40px 0; text-align: center; }
 
+  /* Filters */
+  .filters { background: var(--surface); border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03); padding: 16px 20px; margin-bottom: 32px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+  .filter-group { display: flex; align-items: center; gap: 8px; }
+  .filter-group label { font-size: 12px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+  .filter-group select, .filter-group input[type="range"] { font-family: var(--sans); font-size: 13px; padding: 5px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text); }
+  .filter-group select:focus, .filter-group input:focus { outline: none; border-color: var(--text-dim); }
+  .filter-group .p-val { font-family: var(--mono); font-size: 12px; color: var(--text); min-width: 40px; }
+  .metric-toggles { display: flex; gap: 6px; flex-wrap: wrap; }
+  .metric-toggles button { font-family: var(--sans); font-size: 12px; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg); color: var(--text-dim); cursor: pointer; transition: all 0.15s; }
+  .metric-toggles button.active { background: var(--text-bright); color: var(--bg); border-color: var(--text-bright); }
+  .metric-toggles button:hover { border-color: var(--text-dim); }
+
   .debug-toggle { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--border); }
   .debug-toggle summary { font-size: 13px; color: var(--text-dim); cursor: pointer; }
   .debug-toggle pre { margin-top: 8px; font-family: var(--mono); font-size: 12px; color: var(--text-dim); white-space: pre-wrap; }
@@ -117,7 +129,7 @@
   <!-- Summary Cards with Trends -->
   <div class="cards">
     {% if 'recovery_score' in df.columns %}
-    <div class="card">
+    <div class="card" data-metric="recovery_score">
       <div class="label">Recovery</div>
       <div class="value">{{ "%.0f"|format(df['recovery_score'].mean()) }}%</div>
       <div class="unit">{{ "%.0f"|format(df['recovery_score'].min()) }}&ndash;{{ "%.0f"|format(df['recovery_score'].max()) }}%</div>
@@ -127,14 +139,14 @@
     </div>
     {% endif %}
     {% if 'strain' in df.columns %}
-    <div class="card">
+    <div class="card" data-metric="strain">
       <div class="label">Strain</div>
       <div class="value">{{ "%.1f"|format(df['strain'].mean()) }}</div>
       <div class="unit">peak {{ "%.1f"|format(df['strain'].max()) }}</div>
     </div>
     {% endif %}
     {% if 'hrv_rmssd' in df.columns %}
-    <div class="card">
+    <div class="card" data-metric="hrv_rmssd">
       <div class="label">HRV</div>
       <div class="value">{{ "%.0f"|format(df['hrv_rmssd'].mean()) }} ms</div>
       <div class="unit">rMSSD</div>
@@ -144,14 +156,14 @@
     </div>
     {% endif %}
     {% if 'total_sleep_minutes' in df.columns %}
-    <div class="card">
+    <div class="card" data-metric="total_sleep_minutes">
       <div class="label">Sleep</div>
       <div class="value">{{ "%.1f"|format(df['total_sleep_minutes'].mean() / 60) }}h</div>
       <div class="unit">per night</div>
     </div>
     {% endif %}
     {% if 'resting_hr' in df.columns %}
-    <div class="card">
+    <div class="card" data-metric="resting_hr">
       <div class="label">Resting HR</div>
       <div class="value">{{ "%.0f"|format(df['resting_hr'].mean()) }}</div>
       <div class="unit">bpm</div>
@@ -161,14 +173,14 @@
     </div>
     {% endif %}
     {% if 'sleep_efficiency' in df.columns %}
-    <div class="card">
+    <div class="card" data-metric="sleep_efficiency">
       <div class="label">Sleep Eff.</div>
       <div class="value">{{ "%.0f"|format(df['sleep_efficiency'].mean()) }}%</div>
       <div class="unit">avg</div>
     </div>
     {% endif %}
     {% if 'kilojoule' in df.columns %}
-    <div class="card">
+    <div class="card" data-metric="kilojoule">
       <div class="label">Calories</div>
       <div class="value">{{ "%.0f"|format(df['kilojoule'].mean() * 0.239) }}</div>
       <div class="unit">kcal/day</div>
@@ -179,8 +191,17 @@
   <!-- Tabbed Chart Viewer -->
   <div class="chart-viewer">
     <div class="chart-nav">
-      <button id="prev-tab">&larr; Previous</button>
+      <button id="prev-tab">&larr; Prev</button>
       <span class="counter" id="tab-counter">1 / 11</span>
+      <div class="filter-group" style="margin-left: auto; margin-right: 12px;">
+        <label>Range</label>
+        <select id="filter-chart-date">
+          <option value="all">All</option>
+          <option value="7">7d</option>
+          <option value="14">14d</option>
+          <option value="30">30d</option>
+        </select>
+      </div>
       <button id="next-tab">Next &rarr;</button>
     </div>
     <div class="tab-bar" id="tab-bar">
@@ -220,19 +241,58 @@
 
   </div>
 
-  <!-- Sleep Drivers -->
+  <!-- Sleep Quality Drivers -->
   {% if insights and insights.get('sleep_drivers') %}
   <div class="section">
-    <h2>What Impacts Your Sleep <span>{{ insights['sleep_drivers']|length }} factors</span></h2>
+    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
+      <h2 style="margin-bottom: 0;">Sleep Quality Drivers <span>measured by {{ insights.get('sleep_quality_metric', 'efficiency') }}</span></h2>
+      <div class="filter-group" style="margin-left: auto;">
+        <label>p &le;</label>
+        <input type="range" id="filter-sleep-pval" min="0" max="100" value="100" step="1" style="width: 90px;">
+        <span class="p-val" id="sleep-pval-display">1.00</span>
+      </div>
+    </div>
     <div style="background: var(--surface); border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03); padding: 24px;">
-      <div id="chart-sleep-drivers" style="height: 450px;"></div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+        <thead>
+          <tr style="border-bottom: 2px solid var(--border); text-align: left;">
+            <th style="padding: 10px 12px; color: var(--text-dim); font-weight: 500;">Factor</th>
+            <th style="padding: 10px 12px; color: var(--text-dim); font-weight: 500;">Effect on Sleep</th>
+            <th style="padding: 10px 12px; color: var(--text-dim); font-weight: 500; font-family: var(--mono);">r</th>
+            <th style="padding: 10px 12px; color: var(--text-dim); font-weight: 500; font-family: var(--mono);">p-value</th>
+            <th style="padding: 10px 12px; color: var(--text-dim); font-weight: 500;">Magnitude</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in insights['sleep_drivers'] %}
+          <tr style="border-bottom: 1px solid var(--border);">
+            <td style="padding: 12px; color: var(--text-bright); font-weight: 500;">{{ d.name }}</td>
+            <td style="padding: 12px; color: {{ 'var(--accent)' if d.direction == 'improves' else 'var(--warn)' }}; font-weight: 500;">{{ d.direction }}</td>
+            <td style="padding: 12px; font-family: var(--mono); color: var(--text);">{{ "%+.3f"|format(d.r) }}</td>
+            <td style="padding: 12px; font-family: var(--mono); color: var(--text-dim);">{{ "%.4f"|format(d.p) }}</td>
+            <td style="padding: 12px; color: var(--text-dim);">{{ d.strength }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <p style="margin-top: 16px; font-size: 12px; color: var(--text-dim); line-height: 1.6;">
+        <strong>r</strong> = Pearson correlation coefficient (−1 to +1). Closer to ±1 means stronger linear relationship.
+        <strong>p-value</strong> = probability this correlation occurred by chance. Below 0.05 is statistically significant; below 0.01 is highly significant.
+      </p>
     </div>
   </div>
   {% endif %}
 
   <!-- Causal Relationships -->
   <div class="section">
-    <h2>Causal Relationships <span>{{ links|length }} found</span></h2>
+    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
+      <h2 style="margin-bottom: 0;">Causal Relationships <span>{{ links|length }} found</span></h2>
+      <div class="filter-group" style="margin-left: auto;">
+        <label>p &le;</label>
+        <input type="range" id="filter-causal-pval" min="0" max="100" value="100" step="1" style="width: 90px;">
+        <span class="p-val" id="causal-pval-display">1.00</span>
+      </div>
+    </div>
     {% if links %}
     <div class="links-grid">
       {% for link in links %}
@@ -261,10 +321,6 @@
       <div class="finding">
         +1 <strong>{{ e.source.replace('_', ' ') }}</strong> &rarr;
         {{ "+" if e.ate > 0 else "" }}{{ "%.3f"|format(e.ate) }} <strong>{{ e.target.replace('_', ' ') }}</strong>
-      </div>
-      <div class="confidence">
-        <span class="badge {{ 'pass' if e.refutation_passed else 'fail' }}">{{ "verified" if e.refutation_passed else "unverified" }}</span>
-        <div class="bar"><div class="bar-fill {{ 'high' if e.refutation_passed else 'low' }}" style="width: {{ '75%' if e.refutation_passed else '25%' }};"></div></div>
       </div>
     </div>
     {% endfor %}
@@ -513,26 +569,64 @@ Plotly.newPlot('chart-hist-hrv', [{
     yaxis: {...L.yaxis, title: {text: 'Days', font: {size: 11}}}}, cfg);
 {% endif %}
 
-// ===== SLEEP DRIVERS: horizontal bar chart =====
-{% if insights and insights.get('sleep_drivers') %}
-{
-  const drivers = {{ insights['sleep_drivers'] | tojson }};
-  const names = drivers.map(d => d.name).reverse();
-  const values = drivers.map(d => d.r).reverse();
-  const colors = values.map(v => v > 0 ? 'rgba(45,138,78,0.6)' : 'rgba(196,64,64,0.5)');
-  const text = drivers.map(d => `r=${d.r.toFixed(2)}, p=${d.p.toFixed(3)}`).reverse();
-  Plotly.newPlot('chart-sleep-drivers', [{
-    y: names, x: values, type: 'bar', orientation: 'h',
-    marker: {color: colors},
-    text: text, textposition: 'outside', textfont: {size: 11, family: 'JetBrains Mono', color: '#8e8e93'},
-    hovertemplate: '%{y}<br>Correlation: %{x:.3f}<extra></extra>',
-  }], {...L, height: Math.max(350, drivers.length * 32), margin: {t: 8, b: 32, l: 180, r: 80},
-      xaxis: {...L.xaxis, title: {text: 'Correlation with Sleep', font: {size: 11}}, range: [-1, 1], zeroline: true, zerolinecolor: '#ddd'},
-      yaxis: {...L.yaxis, tickfont: {size: 12}}}, cfg);
-}
-{% endif %}
 
 {% endif %}
+
+// === Local Filters ===
+
+// Sleep drivers table: p-value filter
+const sleepPval = document.getElementById('filter-sleep-pval');
+const sleepPvalDisplay = document.getElementById('sleep-pval-display');
+if (sleepPval) {
+  sleepPval.addEventListener('input', () => {
+    const threshold = sleepPval.value / 100;
+    sleepPvalDisplay.textContent = threshold.toFixed(2);
+    const table = sleepPval.closest('.section').querySelector('tbody');
+    if (table) {
+      table.querySelectorAll('tr').forEach(row => {
+        const pCell = row.querySelector('td:nth-child(4)');
+        if (pCell) {
+          const p = parseFloat(pCell.textContent);
+          row.style.display = (p <= threshold) ? '' : 'none';
+        }
+      });
+    }
+  });
+}
+
+// Causal links: p-value filter
+const causalPval = document.getElementById('filter-causal-pval');
+const causalPvalDisplay = document.getElementById('causal-pval-display');
+if (causalPval) {
+  causalPval.addEventListener('input', () => {
+    const threshold = causalPval.value / 100;
+    causalPvalDisplay.textContent = threshold.toFixed(2);
+    document.querySelectorAll('.link-card').forEach(card => {
+      const meta = card.querySelector('.meta-row');
+      if (meta) {
+        const match = meta.textContent.match(/p=([\d.]+)/);
+        if (match) {
+          const p = parseFloat(match[1]);
+          card.style.display = (p <= threshold) ? '' : 'none';
+        }
+      }
+    });
+  });
+}
+
+// Chart date range (informational — shows tooltip; full re-filter needs server round-trip)
+const chartDate = document.getElementById('filter-chart-date');
+if (chartDate) {
+  chartDate.addEventListener('change', () => {
+    const val = chartDate.value;
+    const viewer = chartDate.closest('.chart-viewer');
+    if (val === 'all') {
+      viewer.title = '';
+    } else {
+      viewer.title = `Showing all data. Re-run analysis with ${val}-day window for filtered charts.`;
+    }
+  });
+}
 </script>
 </body>
 </html>
