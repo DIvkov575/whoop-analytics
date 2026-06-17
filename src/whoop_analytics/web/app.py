@@ -141,8 +141,15 @@ def debug_api(request: Request):
         return {"error": "not authenticated - go to / and connect first"}
 
     headers = {"Authorization": f"Bearer {token}"}
-    results = {}
 
+    # Pre-check: if token is stale, refresh before probing
+    check = httpx.get(f"{WHOOP_API_BASE}/v2/user/profile/basic", headers=headers, timeout=10)
+    if check.status_code == 401:
+        if _try_refresh_session(store):
+            token = store["access_token"]
+            headers = {"Authorization": f"Bearer {token}"}
+
+    results = {}
     endpoints = [
         "/v2/cycle",
         "/v2/activity/sleep",
@@ -185,12 +192,64 @@ def _get_store(request: Request) -> dict:
         sid = secrets.token_urlsafe(16)
         request.session["sid"] = sid
         _sessions[sid] = {}
-        # Restore from startup-warmed token (no HTTP on request path)
-        if _cached_access_token:
+        # Restore from startup-warmed token or fresh cache
+        cached = _load_cached_tokens()
+        if cached and cached.get("access_token"):
+            if cached.get("expires_at", 0) > time.time():
+                _sessions[sid]["access_token"] = cached["access_token"]
+                _sessions[sid]["refresh_token"] = cached.get("refresh_token", "")
+            else:
+                # Token expired — refresh inline (fast, single POST)
+                _sessions[sid]["refresh_token"] = cached.get("refresh_token", "")
+                _try_refresh_session(_sessions[sid])
+        elif _cached_access_token:
             _sessions[sid]["access_token"] = _cached_access_token
-            cached = _load_cached_tokens()
             _sessions[sid]["refresh_token"] = (cached or {}).get("refresh_token", "")
     return _sessions[sid]
+
+
+def _try_refresh_session(store: dict) -> bool:
+    """Attempt to refresh an expired access_token using the stored refresh_token. Returns True on success."""
+    global _cached_access_token
+    refresh_token = store.get("refresh_token") or ""
+    if not refresh_token:
+        cached = _load_cached_tokens()
+        refresh_token = (cached or {}).get("refresh_token", "")
+    if not refresh_token:
+        refresh_token = os.environ.get("WHOOP_REFRESH_TOKEN", "")
+    if not refresh_token:
+        return False
+
+    try:
+        response = httpx.post(WHOOP_TOKEN_URL, data={
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token,
+            "client_id": _client_id(),
+            "client_secret": _client_secret(),
+        }, timeout=10)
+        if response.status_code == 429:
+            retry_after = int(response.headers.get("Retry-After", "2"))
+            time.sleep(retry_after)
+            response = httpx.post(WHOOP_TOKEN_URL, data={
+                "grant_type": "refresh_token",
+                "refresh_token": refresh_token,
+                "client_id": _client_id(),
+                "client_secret": _client_secret(),
+            }, timeout=10)
+        if response.status_code != 200:
+            return False
+        body = response.json()
+        store["access_token"] = body["access_token"]
+        store["refresh_token"] = body.get("refresh_token", refresh_token)
+        _cached_access_token = body["access_token"]
+        _save_cached_tokens(
+            access_token=body["access_token"],
+            refresh_token=body.get("refresh_token", refresh_token),
+            expires_in=body.get("expires_in", 3600),
+        )
+        return True
+    except Exception:
+        return False
 
 
 def _client_id() -> str:
@@ -309,13 +368,19 @@ def _do_analyze(request: Request, store: dict, token: str):
 
     debug_info = []
 
-    # Verify token works by hitting profile endpoint
+    # Verify token works by hitting profile endpoint; auto-refresh if expired
     profile_resp = httpx.get(f"{WHOOP_API_BASE}/v2/user/profile/basic", headers=headers, timeout=10)
     debug_info.append(f"profile check: {profile_resp.status_code}")
     if profile_resp.status_code == 401:
-        return templates.TemplateResponse(request=request, name="dashboard.html", context={
-            "has_data": False, "error": "Access token expired. Please reconnect your Whoop account.",
-        })
+        if _try_refresh_session(store):
+            token = store["access_token"]
+            headers = {"Authorization": f"Bearer {token}"}
+            profile_resp = httpx.get(f"{WHOOP_API_BASE}/v2/user/profile/basic", headers=headers, timeout=10)
+            debug_info.append(f"profile after refresh: {profile_resp.status_code}")
+        if profile_resp.status_code == 401:
+            return templates.TemplateResponse(request=request, name="dashboard.html", context={
+                "has_data": False, "error": "Access token expired and refresh failed. Please reconnect your Whoop account.",
+            })
 
     # Fetch cycles (delays between endpoints to avoid 429 rate limits)
     cycle_records = _try_fetch(f"{WHOOP_API_BASE}/v2/cycle", {}, headers, debug_info, "cycles")
