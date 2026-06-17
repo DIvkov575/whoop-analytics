@@ -39,12 +39,15 @@
   <h2>Ready to Analyze</h2>
   <p>Fetch your last 90 days of Whoop data, run causal discovery with PCMCI, and estimate what actually drives your recovery and performance.</p>
 
-  <form method="post" action="/analyze">
+  <form method="post" action="/analyze" style="margin-bottom: 12px;">
     <button type="submit" class="btn">Run Causal Analysis</button>
+  </form>
+  <form method="post" action="/analyze?refresh=1" style="margin-bottom: 12px;">
+    <button type="submit" style="background: none; border: 1px solid #555; color: #999; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">Force Refresh (re-fetch all data)</button>
   </form>
 
   {% if has_data %}
-  <p style="margin-top: 24px;"><a href="/results" style="color: #4CAF50; font-weight: 500;">View latest results &rarr;</a></p>
+  <p style="margin-top: 16px;"><a href="/results" style="color: #4CAF50; font-weight: 500;">View latest results &rarr;</a></p>
   {% endif %}
 
   <div class="features">

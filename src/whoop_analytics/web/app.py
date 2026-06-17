@@ -32,6 +32,7 @@ SCOPES = "read:recovery read:cycles read:sleep read:workout read:profile read:bo
 _sessions: dict[str, dict] = {}
 
 TOKEN_CACHE_PATH = Path(os.environ.get("TOKEN_CACHE_PATH", "/data/tokens.json"))
+DATA_CACHE_DIR = Path(os.environ.get("DATA_CACHE_DIR", "/data/cache"))
 
 
 def _save_cached_tokens(access_token: str, refresh_token: str, expires_in: int, token_file: Path = None) -> None:
@@ -345,8 +346,10 @@ def analyze(request: Request):
     if not token:
         return RedirectResponse("/")
 
+    force_refresh = request.query_params.get("refresh") == "1"
+
     try:
-        return _do_analyze(request, store, token)
+        return _do_analyze(request, store, token, force_refresh=force_refresh)
     except Exception as e:
         import traceback
         tb = traceback.format_exc()
@@ -355,34 +358,8 @@ def analyze(request: Request):
         })
 
 
-def _do_analyze(request: Request, store: dict, token: str):
-    headers = {"Authorization": f"Bearer {token}"}
-    data_dir = Path(store.get("data_dir", mkdtemp(prefix="whoop_")))
-    store["data_dir"] = str(data_dir)
-    raw_dir = data_dir / "raw"
-    raw_dir.mkdir(parents=True, exist_ok=True)
-
-    end_date = date.today().isoformat() + "T23:59:59.999Z"
-    start_date = (date.today() - timedelta(days=90)).isoformat() + "T00:00:00.000Z"
-    params = {"start": start_date, "end": end_date}
-
-    debug_info = []
-
-    # Verify token works by hitting profile endpoint; auto-refresh if expired
-    profile_resp = httpx.get(f"{WHOOP_API_BASE}/v2/user/profile/basic", headers=headers, timeout=10)
-    debug_info.append(f"profile check: {profile_resp.status_code}")
-    if profile_resp.status_code == 401:
-        if _try_refresh_session(store):
-            token = store["access_token"]
-            headers = {"Authorization": f"Bearer {token}"}
-            profile_resp = httpx.get(f"{WHOOP_API_BASE}/v2/user/profile/basic", headers=headers, timeout=10)
-            debug_info.append(f"profile after refresh: {profile_resp.status_code}")
-        if profile_resp.status_code == 401:
-            return templates.TemplateResponse(request=request, name="dashboard.html", context={
-                "has_data": False, "error": "Access token expired and refresh failed. Please reconnect your Whoop account.",
-            })
-
-    # Fetch cycles (delays between endpoints to avoid 429 rate limits)
+def _fetch_all_data(headers: dict, raw_dir: Path, debug_info: list) -> None:
+    """Fetch all Whoop data and save as parquet files."""
     cycle_records = _try_fetch(f"{WHOOP_API_BASE}/v2/cycle", {}, headers, debug_info, "cycles")
     time.sleep(0.5)
 
@@ -414,7 +391,6 @@ def _do_analyze(request: Request, store: dict, token: str):
             pd.DataFrame(rows).to_parquet(raw_dir / "sleep.parquet", index=False)
             debug_info.append(f"wrote {len(rows)} cycle rows as sleep.parquet")
 
-    # Fetch sleep and recovery (v2 endpoints)
     sleep_records = _try_fetch(f"{WHOOP_API_BASE}/v2/activity/sleep", {}, headers, debug_info, "sleep")
     if sleep_records:
         parsed = [SleepRecord.from_api(r) for r in sleep_records]
@@ -427,7 +403,6 @@ def _do_analyze(request: Request, store: dict, token: str):
         pd.DataFrame([asdict(r) for r in parsed]).to_parquet(raw_dir / "recovery.parquet", index=False)
     time.sleep(0.5)
 
-    # Fetch workouts
     workout_records = _try_fetch(f"{WHOOP_API_BASE}/v2/activity/workout", {}, headers, debug_info, "workouts")
     if workout_records:
         rows = []
@@ -447,10 +422,8 @@ def _do_analyze(request: Request, store: dict, token: str):
         if rows:
             pd.DataFrame(rows).to_parquet(raw_dir / "workouts.parquet", index=False)
             debug_info.append(f"wrote {len(rows)} workout rows")
-
     time.sleep(0.5)
 
-    # Fetch journal (lifestyle factors: caffeine, alcohol, stress, etc.)
     journal_records = _try_fetch(f"{WHOOP_API_BASE}/v2/journal", {}, headers, debug_info, "journal")
     if journal_records:
         rows = []
@@ -463,15 +436,47 @@ def _do_analyze(request: Request, store: dict, token: str):
         if rows:
             pd.DataFrame(rows).to_parquet(raw_dir / "journal.parquet", index=False)
             debug_info.append(f"wrote {len(rows)} journal rows")
-
     time.sleep(0.5)
 
-    # Fetch body measurements
     body_resp = _try_fetch_single(f"{WHOOP_API_BASE}/v2/user/measurement/body", headers, debug_info, "body")
     if body_resp:
-        body_file = raw_dir / "body.json"
-        body_file.write_text(json.dumps(body_resp))
+        (raw_dir / "body.json").write_text(json.dumps(body_resp))
         debug_info.append(f"wrote body measurements")
+
+
+def _do_analyze(request: Request, store: dict, token: str, force_refresh: bool = False):
+    headers = {"Authorization": f"Bearer {token}"}
+    cache_dir = DATA_CACHE_DIR / date.today().isoformat()
+    raw_dir = cache_dir / "raw"
+
+    # Check if we have cached data from today
+    use_cache = not force_refresh and (raw_dir / "sleep.parquet").exists()
+
+    debug_info = []
+
+    if use_cache:
+        debug_info.append("using cached data from today")
+    else:
+        raw_dir.mkdir(parents=True, exist_ok=True)
+
+        # Verify token works by hitting profile endpoint; auto-refresh if expired
+        profile_resp = httpx.get(f"{WHOOP_API_BASE}/v2/user/profile/basic", headers=headers, timeout=10)
+        debug_info.append(f"profile check: {profile_resp.status_code}")
+        if profile_resp.status_code == 401:
+            if _try_refresh_session(store):
+                token = store["access_token"]
+                headers = {"Authorization": f"Bearer {token}"}
+                profile_resp = httpx.get(f"{WHOOP_API_BASE}/v2/user/profile/basic", headers=headers, timeout=10)
+                debug_info.append(f"profile after refresh: {profile_resp.status_code}")
+            if profile_resp.status_code == 401:
+                return templates.TemplateResponse(request=request, name="dashboard.html", context={
+                    "has_data": False, "error": "Access token expired and refresh failed. Please reconnect your Whoop account.",
+                })
+
+        _fetch_all_data(headers, raw_dir, debug_info)
+
+    data_dir = cache_dir
+    store["data_dir"] = str(data_dir)
 
     df = build_daily_dataset(data_dir)
     debug_info.append(f"daily_df shape: {df.shape}")
@@ -535,7 +540,7 @@ def _do_analyze(request: Request, store: dict, token: str):
     # Compute extra insights for richer dashboard
     insights = _compute_insights(df)
 
-    return templates.TemplateResponse(request=request, name="results.html", context={
+    context = {
         "df": df,
         "links": links,
         "effects": effects,
@@ -545,15 +550,29 @@ def _do_analyze(request: Request, store: dict, token: str):
         "date_end": df.index[-1].strftime("%Y-%m-%d") if not df.empty else "",
         "debug_info": debug_info,
         "insights": insights,
-    })
+    }
+
+    # Cache analysis results for /results endpoint
+    import pickle
+    results_cache = cache_dir / "results.pkl"
+    results_cache.write_bytes(pickle.dumps(context))
+
+    return templates.TemplateResponse(request=request, name="results.html", context=context)
 
 
 @app.get("/results", response_class=HTMLResponse)
 def results(request: Request):
     store = _get_store(request)
+    # Try loading cached results
+    import pickle
+    for day_dir in sorted(DATA_CACHE_DIR.glob("*"), reverse=True):
+        results_file = day_dir / "results.pkl"
+        if results_file.exists():
+            context = pickle.loads(results_file.read_bytes())
+            return templates.TemplateResponse(request=request, name="results.html", context=context)
     if not store.get("has_analysis"):
         return RedirectResponse("/")
-    return templates.TemplateResponse(request=request, name="dashboard.html", context={"has_data": True})
+    return RedirectResponse("/")
 
 
 def _compute_insights(df: pd.DataFrame) -> dict:
