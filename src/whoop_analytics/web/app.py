@@ -512,10 +512,13 @@ def _do_analyze(request: Request, store: dict, token: str):
 
         if len(df) >= 10:
             discovery = CausalDiscovery(max_lag=3, significance_level=0.05)
+            discovery_relaxed = CausalDiscovery(max_lag=3, significance_level=0.20)
             estimator = EffectEstimator()
 
             for t in causal_targets:
-                result = discovery.run(df, target=t)
+                # Use relaxed threshold for sleep to surface more influences
+                disc = discovery_relaxed if t == "total_sleep_minutes" else discovery
+                result = disc.run(df, target=t)
                 for link in result.links:
                     link_key = (link.source, link.target, link.lag)
                     if link_key in seen_links:
