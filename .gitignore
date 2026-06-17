@@ -11,3 +11,4 @@ data/processed/
 *.parquet
 .pytest_cache/
 .streamlit/secrets.toml
+password.txt
