@@ -23,20 +23,14 @@
   /* Summary Cards */
   .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 32px; }
   .card { background: #12122a; border: 1px solid #1a1a3e; border-radius: 12px; padding: 16px; }
-  .card .label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; color: #555; margin-bottom: 4px; }
-  .card .value { font-size: 1.7rem; font-weight: 700; line-height: 1; }
-  .card .value.green { color: #7cb87f; }
-  .card .value.blue { color: #7bafd4; }
-  .card .value.orange { color: #c9a050; }
-  .card .value.purple { color: #9e80b8; }
-  .card .value.red { color: #c47070; }
-  .card .value.teal { color: #6ba8a0; }
-  .card .unit { font-size: 0.75rem; color: #444; margin-top: 3px; }
+  .card .label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; color: #666; margin-bottom: 4px; }
+  .card .value { font-size: 1.7rem; font-weight: 700; line-height: 1; color: #e8e8e8; }
+  .card .unit { font-size: 0.75rem; color: #555; margin-top: 3px; }
   .card .trend { font-size: 0.7rem; margin-top: 4px; }
-  .card .trend.up-good { color: #7cb87f; }
-  .card .trend.down-good { color: #7cb87f; }
-  .card .trend.up-bad { color: #c47070; }
-  .card .trend.down-bad { color: #c47070; }
+  .card .trend.up-good { color: #8cba8c; }
+  .card .trend.down-good { color: #8cba8c; }
+  .card .trend.up-bad { color: #ba8c8c; }
+  .card .trend.down-bad { color: #ba8c8c; }
 
   /* Tabbed Chart Viewer */
   .chart-viewer { background: #12122a; border: 1px solid #1a1a3e; border-radius: 12px; margin-bottom: 40px; overflow: hidden; }
@@ -45,7 +39,7 @@
   .tab-bar::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
   .tab-btn { padding: 12px 16px; font-size: 0.8rem; color: #555; background: none; border: none; cursor: pointer; white-space: nowrap; border-bottom: 2px solid transparent; transition: all 0.2s; }
   .tab-btn:hover { color: #aaa; }
-  .tab-btn.active { color: #ddd; border-bottom-color: #7cb87f; }
+  .tab-btn.active { color: #e0e0e0; border-bottom-color: #888; }
   .tab-content { display: none; padding: 24px; }
   .tab-content.active { display: block; }
   .chart-nav { display: flex; justify-content: space-between; align-items: center; padding: 10px 24px; border-bottom: 1px solid #1a1a3e; }
@@ -62,27 +56,27 @@
   .links-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
   .link-card { background: #12122a; border: 1px solid #1a1a3e; border-radius: 10px; padding: 16px; transition: border-color 0.2s; }
   .link-card:hover { border-color: #333; }
-  .link-card .relationship { font-size: 1rem; margin-bottom: 8px; color: #ccc; line-height: 1.5; }
-  .link-card .relationship .cause { color: #8ab4cc; font-weight: 600; }
-  .link-card .relationship .effect { color: #8ab89e; font-weight: 600; }
-  .link-card .relationship .neg { color: #b88080; }
-  .link-card .relationship .pos { color: #80b890; }
+  .link-card .relationship { font-size: 1rem; margin-bottom: 8px; color: #bbb; line-height: 1.5; }
+  .link-card .relationship .cause { color: #e8e8e8; font-weight: 600; }
+  .link-card .relationship .effect { color: #e8e8e8; font-weight: 600; }
+  .link-card .relationship .neg { color: #ba8c8c; }
+  .link-card .relationship .pos { color: #8cba8c; }
   .link-card .meta-row { display: flex; gap: 16px; font-size: 0.75rem; color: #444; }
 
   .effect-card { background: #12122a; border: 1px solid #1a1a3e; border-radius: 10px; padding: 20px; margin: 12px 0; border-left: 4px solid transparent; }
-  .effect-card.robust { border-left-color: #4CAF50; }
-  .effect-card.uncertain { border-left-color: #333; }
+  .effect-card.robust { border-left-color: #8cba8c; }
+  .effect-card.uncertain { border-left-color: #2a2a2a; }
   .effect-card .finding { font-size: 1.05rem; color: #ddd; line-height: 1.6; margin-bottom: 12px; }
   .effect-card .finding .highlight { color: #fff; font-weight: 600; }
   .effect-card .confidence { display: flex; align-items: center; gap: 10px; }
   .effect-card .confidence .bar { flex: 1; height: 6px; background: #1a1a3e; border-radius: 3px; overflow: hidden; }
   .effect-card .confidence .bar-fill { height: 100%; border-radius: 3px; }
-  .effect-card .confidence .bar-fill.high { background: #4CAF50; }
+  .effect-card .confidence .bar-fill.high { background: #8cba8c; }
   .effect-card .confidence .bar-fill.low { background: #333; }
   .effect-card .confidence .label { font-size: 0.8rem; color: #666; white-space: nowrap; }
 
   .badge { display: inline-block; padding: 3px 10px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
-  .badge.pass { background: #1b3d1b; color: #4CAF50; }
+  .badge.pass { background: #1a2e1a; color: #8cba8c; }
   .badge.fail { background: #1a1a1a; color: #555; }
 
   .empty { color: #444; font-style: italic; padding: 24px; text-align: center; background: #12122a; border-radius: 8px; border: 1px solid #1a1a3e; }
@@ -115,7 +109,7 @@
     {% if 'recovery_score' in df.columns %}
     <div class="card">
       <div class="label">Recovery</div>
-      <div class="value green">{{ "%.0f"|format(df['recovery_score'].mean()) }}%</div>
+      <div class="value">{{ "%.0f"|format(df['recovery_score'].mean()) }}%</div>
       <div class="unit">{{ "%.0f"|format(df['recovery_score'].min()) }}&ndash;{{ "%.0f"|format(df['recovery_score'].max()) }}%</div>
       {% if insights and insights.get('trends', {}).get('recovery_score') %}
       <div class="trend {{ 'up-good' if insights['trends']['recovery_score']['direction'] == 'up' else 'down-bad' }}">{{ "%.1f"|format(insights['trends']['recovery_score']['slope_per_week']) }}/wk {{ "&uarr;" if insights['trends']['recovery_score']['direction'] == 'up' else "&darr;" }}</div>
@@ -125,14 +119,14 @@
     {% if 'strain' in df.columns %}
     <div class="card">
       <div class="label">Strain</div>
-      <div class="value orange">{{ "%.1f"|format(df['strain'].mean()) }}</div>
+      <div class="value">{{ "%.1f"|format(df['strain'].mean()) }}</div>
       <div class="unit">peak {{ "%.1f"|format(df['strain'].max()) }}</div>
     </div>
     {% endif %}
     {% if 'hrv_rmssd' in df.columns %}
     <div class="card">
       <div class="label">HRV</div>
-      <div class="value blue">{{ "%.0f"|format(df['hrv_rmssd'].mean()) }} ms</div>
+      <div class="value">{{ "%.0f"|format(df['hrv_rmssd'].mean()) }} ms</div>
       <div class="unit">rMSSD</div>
       {% if insights and insights.get('trends', {}).get('hrv_rmssd') %}
       <div class="trend {{ 'up-good' if insights['trends']['hrv_rmssd']['direction'] == 'up' else 'down-bad' }}">{{ "%.1f"|format(insights['trends']['hrv_rmssd']['slope_per_week']) }}/wk {{ "&uarr;" if insights['trends']['hrv_rmssd']['direction'] == 'up' else "&darr;" }}</div>
@@ -142,14 +136,14 @@
     {% if 'total_sleep_minutes' in df.columns %}
     <div class="card">
       <div class="label">Sleep</div>
-      <div class="value purple">{{ "%.1f"|format(df['total_sleep_minutes'].mean() / 60) }}h</div>
+      <div class="value">{{ "%.1f"|format(df['total_sleep_minutes'].mean() / 60) }}h</div>
       <div class="unit">per night</div>
     </div>
     {% endif %}
     {% if 'resting_hr' in df.columns %}
     <div class="card">
       <div class="label">Resting HR</div>
-      <div class="value red">{{ "%.0f"|format(df['resting_hr'].mean()) }}</div>
+      <div class="value">{{ "%.0f"|format(df['resting_hr'].mean()) }}</div>
       <div class="unit">bpm</div>
       {% if insights and insights.get('trends', {}).get('resting_hr') %}
       <div class="trend {{ 'down-good' if insights['trends']['resting_hr']['direction'] == 'down' else 'up-bad' }}">{{ "%.1f"|format(insights['trends']['resting_hr']['slope_per_week']) }}/wk {{ "&uarr;" if insights['trends']['resting_hr']['direction'] == 'up' else "&darr;" }}</div>
@@ -159,14 +153,14 @@
     {% if 'sleep_efficiency' in df.columns %}
     <div class="card">
       <div class="label">Sleep Eff.</div>
-      <div class="value teal">{{ "%.0f"|format(df['sleep_efficiency'].mean()) }}%</div>
+      <div class="value">{{ "%.0f"|format(df['sleep_efficiency'].mean()) }}%</div>
       <div class="unit">avg</div>
     </div>
     {% endif %}
     {% if 'kilojoule' in df.columns %}
     <div class="card">
       <div class="label">Calories</div>
-      <div class="value orange">{{ "%.0f"|format(df['kilojoule'].mean() * 0.239) }}</div>
+      <div class="value">{{ "%.0f"|format(df['kilojoule'].mean() * 0.239) }}</div>
       <div class="unit">kcal/day</div>
     </div>
     {% endif %}
@@ -337,16 +331,20 @@ function rolling(arr, w) {
 {% if df is not none and not df.empty %}
 const dates = {{ df.index.strftime('%Y-%m-%d').tolist() | tojson }};
 
+const BAR = 'rgba(180,190,200,0.35)';
+const LINE = 'rgba(220,225,230,0.9)';
+const DOT = 'rgba(180,190,200,0.5)';
+const leg = {orientation: 'h', y: 1.03, x: 0, font: {size: 10, color: '#666'}};
+
 // Recovery
 {% if 'recovery_score' in df.columns %}
 {
   const y = {{ df['recovery_score'].tolist() | tojson }};
-  const colors = y.map(v => v >= 67 ? 'rgba(100,160,100,0.45)' : v >= 34 ? 'rgba(190,150,70,0.45)' : 'rgba(180,90,80,0.45)');
   const avg7 = rolling(y, 7);
   Plotly.newPlot('chart-recovery', [
-    {x: dates, y: y, type: 'bar', marker: {color: colors, line: {width: 0}}, hovertemplate: '%{y:.0f}%<extra>Daily</extra>', name: 'Daily'},
-    {x: dates, y: avg7, type: 'scatter', mode: 'lines', line: {color: '#fff', width: 2.5, shape: 'spline'}, hovertemplate: '%{y:.0f}%<extra>7d avg</extra>', name: '7-day'},
-  ], {...L, height: 400, showlegend: true, legend: {orientation: 'h', y: 1.03, x: 0, font: {size: 10, color: '#888'}},
+    {x: dates, y: y, type: 'bar', marker: {color: BAR, line: {width: 0}}, hovertemplate: '%{y:.0f}%<extra>Daily</extra>', name: 'Daily'},
+    {x: dates, y: avg7, type: 'scatter', mode: 'lines', line: {color: LINE, width: 2, shape: 'spline'}, hovertemplate: '%{y:.0f}%<extra>7d avg</extra>', name: '7-day avg'},
+  ], {...L, height: 400, showlegend: true, legend: leg,
       yaxis: {...L.yaxis, title: {text: 'Recovery %', font: {size: 11}}, range: [0, 100]}}, cfg);
 }
 {% endif %}
@@ -355,10 +353,12 @@ const dates = {{ df.index.strftime('%Y-%m-%d').tolist() | tojson }};
 {% if 'strain' in df.columns %}
 {
   const y = {{ df['strain'].tolist() | tojson }};
-  const colors = y.map(v => v >= 14 ? 'rgba(180,90,80,0.5)' : v >= 8 ? 'rgba(190,150,70,0.5)' : 'rgba(100,160,100,0.35)');
-  Plotly.newPlot('chart-strain', [{
-    x: dates, y: y, type: 'bar', marker: {color: colors, line: {width: 0}}, hovertemplate: '%{y:.1f}<extra></extra>',
-  }], {...L, height: 400, yaxis: {...L.yaxis, title: {text: 'Strain (0-21)', font: {size: 11}}, range: [0, 21]}}, cfg);
+  const avg7 = rolling(y, 7);
+  Plotly.newPlot('chart-strain', [
+    {x: dates, y: y, type: 'bar', marker: {color: BAR, line: {width: 0}}, hovertemplate: '%{y:.1f}<extra>Daily</extra>', name: 'Daily'},
+    {x: dates, y: avg7, type: 'scatter', mode: 'lines', line: {color: LINE, width: 2, shape: 'spline'}, hovertemplate: '%{y:.1f}<extra>7d avg</extra>', name: '7-day avg'},
+  ], {...L, height: 400, showlegend: true, legend: leg,
+      yaxis: {...L.yaxis, title: {text: 'Strain', font: {size: 11}}, range: [0, 21]}}, cfg);
 }
 {% endif %}
 
@@ -368,9 +368,9 @@ const dates = {{ df.index.strftime('%Y-%m-%d').tolist() | tojson }};
   const y = {{ df['hrv_rmssd'].tolist() | tojson }};
   const avg7 = rolling(y, 7);
   Plotly.newPlot('chart-hrv', [
-    {x: dates, y: y, type: 'scatter', mode: 'none', fill: 'tozeroy', fillcolor: 'rgba(100,150,200,0.1)', hovertemplate: '%{y:.0f} ms<extra>Daily</extra>', name: 'Daily'},
-    {x: dates, y: avg7, type: 'scatter', mode: 'lines', line: {color: '#7bafd4', width: 2.5, shape: 'spline'}, hovertemplate: '%{y:.0f} ms<extra>7d avg</extra>', name: '7-day'},
-  ], {...L, height: 400, showlegend: true, legend: {orientation: 'h', y: 1.03, x: 0, font: {size: 10, color: '#888'}},
+    {x: dates, y: y, type: 'scatter', mode: 'none', fill: 'tozeroy', fillcolor: 'rgba(180,190,200,0.08)', hovertemplate: '%{y:.0f} ms<extra>Daily</extra>', name: 'Daily'},
+    {x: dates, y: avg7, type: 'scatter', mode: 'lines', line: {color: LINE, width: 2, shape: 'spline'}, hovertemplate: '%{y:.0f} ms<extra>7d avg</extra>', name: '7-day avg'},
+  ], {...L, height: 400, showlegend: true, legend: leg,
       yaxis: {...L.yaxis, title: {text: 'HRV (ms)', font: {size: 11}}}}, cfg);
 }
 {% endif %}
@@ -378,19 +378,19 @@ const dates = {{ df.index.strftime('%Y-%m-%d').tolist() | tojson }};
 // Sleep
 {% if 'sws_minutes' in df.columns %}
 Plotly.newPlot('chart-sleep', [
-  {x: dates, y: {{ df['sws_minutes'].tolist() | tojson }}, name: 'Deep', type: 'bar', marker: {color: '#1A237E'}, hovertemplate: 'Deep: %{y:.0f}m<extra></extra>'},
-  {x: dates, y: {{ df['rem_minutes'].tolist() | tojson }}, name: 'REM', type: 'bar', marker: {color: '#6A1B9A'}, hovertemplate: 'REM: %{y:.0f}m<extra></extra>'},
-  {x: dates, y: {{ df['light_minutes'].tolist() | tojson }}, name: 'Light', type: 'bar', marker: {color: '#00695C'}, hovertemplate: 'Light: %{y:.0f}m<extra></extra>'},
-], {...L, height: 400, barmode: 'stack', showlegend: true, legend: {orientation: 'h', y: 1.03, x: 0, font: {size: 10, color: '#888'}},
+  {x: dates, y: {{ df['sws_minutes'].tolist() | tojson }}, name: 'Deep', type: 'bar', marker: {color: 'rgba(200,210,220,0.5)'}, hovertemplate: 'Deep: %{y:.0f}m<extra></extra>'},
+  {x: dates, y: {{ df['rem_minutes'].tolist() | tojson }}, name: 'REM', type: 'bar', marker: {color: 'rgba(150,160,170,0.4)'}, hovertemplate: 'REM: %{y:.0f}m<extra></extra>'},
+  {x: dates, y: {{ df['light_minutes'].tolist() | tojson }}, name: 'Light', type: 'bar', marker: {color: 'rgba(100,110,120,0.3)'}, hovertemplate: 'Light: %{y:.0f}m<extra></extra>'},
+], {...L, height: 400, barmode: 'stack', showlegend: true, legend: leg,
     yaxis: {...L.yaxis, title: {text: 'Minutes', font: {size: 11}}}}, cfg);
 {% elif 'total_sleep_minutes' in df.columns %}
 {
   const y = {{ df['total_sleep_minutes'].tolist() | tojson }};
   const avg7 = rolling(y, 7);
   Plotly.newPlot('chart-sleep', [
-    {x: dates, y: y, type: 'bar', marker: {color: 'rgba(120,80,150,0.35)', line: {width: 0}}, hovertemplate: '%{y:.0f} min<extra></extra>', name: 'Daily'},
-    {x: dates, y: avg7, type: 'scatter', mode: 'lines', line: {color: '#fff', width: 2, shape: 'spline'}, hovertemplate: '%{y:.0f} min<extra>7d avg</extra>', name: '7-day'},
-  ], {...L, height: 400, showlegend: true, legend: {orientation: 'h', y: 1.03, x: 0, font: {size: 10, color: '#888'}},
+    {x: dates, y: y, type: 'bar', marker: {color: BAR, line: {width: 0}}, hovertemplate: '%{y:.0f} min<extra></extra>', name: 'Daily'},
+    {x: dates, y: avg7, type: 'scatter', mode: 'lines', line: {color: LINE, width: 2, shape: 'spline'}, hovertemplate: '%{y:.0f} min<extra>7d avg</extra>', name: '7-day avg'},
+  ], {...L, height: 400, showlegend: true, legend: leg,
       yaxis: {...L.yaxis, title: {text: 'Minutes', font: {size: 11}}}}, cfg);
 }
 {% endif %}
@@ -401,9 +401,9 @@ Plotly.newPlot('chart-sleep', [
   const y = {{ df['resting_hr'].tolist() | tojson }};
   const avg7 = rolling(y, 7);
   Plotly.newPlot('chart-rhr', [
-    {x: dates, y: y, type: 'scatter', mode: 'none', fill: 'tozeroy', fillcolor: 'rgba(180,90,80,0.08)', hovertemplate: '%{y:.0f} bpm<extra>Daily</extra>', name: 'Daily'},
-    {x: dates, y: avg7, type: 'scatter', mode: 'lines', line: {color: '#c47070', width: 2.5, shape: 'spline'}, hovertemplate: '%{y:.0f} bpm<extra>7d avg</extra>', name: '7-day'},
-  ], {...L, height: 400, showlegend: true, legend: {orientation: 'h', y: 1.03, x: 0, font: {size: 10, color: '#888'}},
+    {x: dates, y: y, type: 'scatter', mode: 'none', fill: 'tozeroy', fillcolor: 'rgba(180,190,200,0.08)', hovertemplate: '%{y:.0f} bpm<extra>Daily</extra>', name: 'Daily'},
+    {x: dates, y: avg7, type: 'scatter', mode: 'lines', line: {color: LINE, width: 2, shape: 'spline'}, hovertemplate: '%{y:.0f} bpm<extra>7d avg</extra>', name: '7-day avg'},
+  ], {...L, height: 400, showlegend: true, legend: leg,
       yaxis: {...L.yaxis, title: {text: 'BPM', font: {size: 11}}}}, cfg);
 }
 {% endif %}
@@ -413,7 +413,7 @@ Plotly.newPlot('chart-sleep', [
 {
   const kcal = {{ df['kilojoule'].tolist() | tojson }}.map(v => v * 0.239);
   Plotly.newPlot('chart-energy', [{
-    x: dates, y: kcal, type: 'bar', marker: {color: 'rgba(190,150,70,0.35)', line: {width: 0}}, hovertemplate: '%{y:.0f} kcal<extra></extra>',
+    x: dates, y: kcal, type: 'bar', marker: {color: BAR, line: {width: 0}}, hovertemplate: '%{y:.0f} kcal<extra></extra>',
   }], {...L, height: 400, yaxis: {...L.yaxis, title: {text: 'Calories', font: {size: 11}}}}, cfg);
 }
 {% endif %}
@@ -422,11 +422,10 @@ Plotly.newPlot('chart-sleep', [
 {% if 'caffeine' in df.columns or 'alcohol' in df.columns or 'stress' in df.columns %}
 {
   const traces = [];
-  {% if 'caffeine' in df.columns %}traces.push({x: dates, y: {{ df['caffeine'].tolist() | tojson }}, name: 'Caffeine', type: 'bar', marker: {color: 'rgba(130,100,85,0.5)'}});{% endif %}
-  {% if 'alcohol' in df.columns %}traces.push({x: dates, y: {{ df['alcohol'].tolist() | tojson }}, name: 'Alcohol', type: 'bar', marker: {color: 'rgba(190,150,70,0.5)'}});{% endif %}
-  {% if 'stress' in df.columns %}traces.push({x: dates, y: {{ df['stress'].tolist() | tojson }}, name: 'Stress', type: 'bar', marker: {color: 'rgba(180,90,80,0.5)'}});{% endif %}
-  Plotly.newPlot('chart-journal', traces, {...L, height: 400, barmode: 'group', showlegend: true,
-    legend: {orientation: 'h', y: 1.03, x: 0, font: {size: 10, color: '#888'}},
+  {% if 'caffeine' in df.columns %}traces.push({x: dates, y: {{ df['caffeine'].tolist() | tojson }}, name: 'Caffeine', type: 'bar', marker: {color: 'rgba(200,210,220,0.45)'}});{% endif %}
+  {% if 'alcohol' in df.columns %}traces.push({x: dates, y: {{ df['alcohol'].tolist() | tojson }}, name: 'Alcohol', type: 'bar', marker: {color: 'rgba(150,160,170,0.4)'}});{% endif %}
+  {% if 'stress' in df.columns %}traces.push({x: dates, y: {{ df['stress'].tolist() | tojson }}, name: 'Stress', type: 'bar', marker: {color: 'rgba(100,110,120,0.35)'}});{% endif %}
+  Plotly.newPlot('chart-journal', traces, {...L, height: 400, barmode: 'group', showlegend: true, legend: leg,
     yaxis: {...L.yaxis, title: {text: 'Level (0-4)', font: {size: 11}}, dtick: 1, range: [0, 4]}}, cfg);
 }
 {% endif %}
@@ -435,7 +434,7 @@ Plotly.newPlot('chart-sleep', [
 {% if 'strain' in df.columns and 'recovery_score' in df.columns %}
 Plotly.newPlot('chart-scatter-strain', [{
   x: {{ df['strain'].tolist() | tojson }}, y: {{ df['recovery_score'].tolist() | tojson }},
-  type: 'scatter', mode: 'markers', marker: {color: 'rgba(190,150,70,0.45)', size: 9, line: {width: 1, color: 'rgba(255,152,0,0.9)'}},
+  type: 'scatter', mode: 'markers', marker: {color: DOT, size: 7},
   hovertemplate: 'Strain: %{x:.1f}<br>Recovery: %{y:.0f}%<extra></extra>',
 }], {...L, height: 380, hovermode: 'closest', xaxis: {...L.xaxis, title: {text: 'Strain', font: {size: 11}}},
     yaxis: {...L.yaxis, title: {text: 'Recovery %', font: {size: 11}}, range: [0, 100]}}, cfg);
@@ -447,7 +446,7 @@ Plotly.newPlot('chart-scatter-strain', [{
   const sleepHrs = {{ df['total_sleep_minutes'].tolist() | tojson }}.map(v => v / 60);
   Plotly.newPlot('chart-scatter-sleep', [{
     x: sleepHrs, y: {{ df['hrv_rmssd'].tolist() | tojson }},
-    type: 'scatter', mode: 'markers', marker: {color: 'rgba(140,100,160,0.45)', size: 9, line: {width: 1, color: 'rgba(140,100,160,0.7)'}},
+    type: 'scatter', mode: 'markers', marker: {color: DOT, size: 7},
     hovertemplate: 'Sleep: %{x:.1f}h<br>HRV: %{y:.0f} ms<extra></extra>',
   }], {...L, height: 380, hovermode: 'closest', xaxis: {...L.xaxis, title: {text: 'Sleep (hours)', font: {size: 11}}},
       yaxis: {...L.yaxis, title: {text: 'HRV (ms)', font: {size: 11}}}}, cfg);
@@ -460,7 +459,7 @@ Plotly.newPlot('chart-scatter-strain', [{
   const d = {{ insights['lag_strain_recovery'] | tojson }};
   Plotly.newPlot('chart-lag-scatter', [{
     x: d.prev_strain, y: d.recovery, type: 'scatter', mode: 'markers',
-    marker: {color: 'rgba(180,100,70,0.45)', size: 9, line: {width: 1, color: 'rgba(180,100,70,0.7)'}},
+    marker: {color: DOT, size: 7},
     hovertemplate: "Yesterday: %{x:.1f}<br>Today: %{y:.0f}%<extra></extra>",
   }], {...L, height: 380, hovermode: 'closest',
       xaxis: {...L.xaxis, title: {text: "Yesterday's Strain", font: {size: 11}}},
@@ -475,9 +474,9 @@ Plotly.newPlot('chart-scatter-strain', [{
   const z = {{ insights['corr_matrix'] | tojson }};
   Plotly.newPlot('chart-corr', [{
     z: z, x: labels, y: labels, type: 'heatmap',
-    colorscale: [[0, '#F44336'], [0.5, '#0a0a1a'], [1, '#4CAF50']],
+    colorscale: [[0, '#6a3a3a'], [0.5, '#0a0a1a'], [1, '#3a6a4a']],
     zmin: -1, zmax: 1, hovertemplate: '%{x} vs %{y}<br>r = %{z:.2f}<extra></extra>',
-    showscale: true, colorbar: {tickfont: {color: '#666'}},
+    showscale: true, colorbar: {tickfont: {color: '#555'}},
   }], {...L, height: 450, margin: {t: 12, b: 110, l: 130, r: 60},
       xaxis: {...L.xaxis, tickangle: -45, tickfont: {size: 9}},
       yaxis: {...L.yaxis, tickfont: {size: 9}, autorange: 'reversed'}}, cfg);
@@ -489,11 +488,10 @@ Plotly.newPlot('chart-scatter-strain', [{
 {
   const days = {{ insights['dow_names'] | tojson }};
   const data = {{ insights['dow_data'] | tojson }};
-  const cmap = {recovery_score: '#4CAF50', strain: '#FF9800', total_sleep_minutes: '#AB47BC', hrv_rmssd: '#7bafd4'};
+  const grays = ['rgba(220,225,230,0.9)', 'rgba(170,175,180,0.8)', 'rgba(130,135,140,0.7)', 'rgba(90,95,100,0.6)'];
   const nmap = {recovery_score: 'Recovery %', strain: 'Strain', total_sleep_minutes: 'Sleep (min)', hrv_rmssd: 'HRV (ms)'};
-  const traces = Object.entries(data).map(([k, v]) => ({x: days, y: v, name: nmap[k]||k, type: 'scatter', mode: 'lines+markers', line: {color: cmap[k]||'#888', width: 2.5}, marker: {size: 8}}));
-  Plotly.newPlot('chart-dow', traces, {...L, height: 400, showlegend: true,
-    legend: {orientation: 'h', y: 1.05, x: 0, font: {size: 10, color: '#888'}},
+  const traces = Object.entries(data).map(([k, v], i) => ({x: days, y: v, name: nmap[k]||k, type: 'scatter', mode: 'lines+markers', line: {color: grays[i % grays.length], width: 2}, marker: {size: 6}}));
+  Plotly.newPlot('chart-dow', traces, {...L, height: 400, showlegend: true, legend: leg,
     yaxis: {...L.yaxis, title: {text: 'Average', font: {size: 11}}}}, cfg);
 }
 {% endif %}
@@ -502,7 +500,7 @@ Plotly.newPlot('chart-scatter-strain', [{
 {% if 'recovery_score' in df.columns %}
 Plotly.newPlot('chart-hist-recovery', [{
   x: {{ df['recovery_score'].tolist() | tojson }}, type: 'histogram', nbinsx: 15,
-  marker: {color: 'rgba(100,160,100,0.45)', line: {width: 1, color: 'rgba(76,175,80,0.9)'}},
+  marker: {color: BAR, line: {width: 1, color: 'rgba(200,210,220,0.6)'}},
 }], {...L, height: 350, xaxis: {...L.xaxis, title: {text: 'Recovery %', font: {size: 11}}, range: [0, 100]},
     yaxis: {...L.yaxis, title: {text: 'Days', font: {size: 11}}}}, cfg);
 {% endif %}
@@ -510,7 +508,7 @@ Plotly.newPlot('chart-hist-recovery', [{
 {% if 'hrv_rmssd' in df.columns %}
 Plotly.newPlot('chart-hist-hrv', [{
   x: {{ df['hrv_rmssd'].tolist() | tojson }}, type: 'histogram', nbinsx: 15,
-  marker: {color: 'rgba(66,165,245,0.6)', line: {width: 1, color: 'rgba(66,165,245,0.9)'}},
+  marker: {color: BAR, line: {width: 1, color: 'rgba(200,210,220,0.6)'}},
 }], {...L, height: 350, xaxis: {...L.xaxis, title: {text: 'HRV (ms)', font: {size: 11}}},
     yaxis: {...L.yaxis, title: {text: 'Days', font: {size: 11}}}}, cfg);
 {% endif %}
