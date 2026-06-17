@@ -494,38 +494,43 @@ def _do_analyze(request: Request, store: dict, token: str):
             "error": msg,
         })
 
-    # Pick best available target for causal analysis
-    target_priority = ["hrv_rmssd", "recovery_score", "strain", "average_heart_rate"]
-    target = None
-    for t in target_priority:
-        if t in df.columns:
-            target = t
-            break
+    # Run causal discovery against multiple targets for richer insights
+    causal_targets = [t for t in ["hrv_rmssd", "recovery_score", "strain", "total_sleep_minutes"]
+                      if t in df.columns]
+    target = causal_targets[0] if causal_targets else None
 
     links = []
     effects = []
-    if target:
-        feature_cols = [c for c in df.columns if c != target]
-        df = add_lag_features(df, columns=feature_cols, lags=[1, 2])
+    seen_links = set()
+
+    if causal_targets:
+        feature_cols = [c for c in df.columns if c not in causal_targets]
+        df = add_lag_features(df, columns=feature_cols + causal_targets, lags=[1, 2])
         df = add_rolling_features(df, columns=feature_cols, windows=[3, 7])
         df = df.dropna()
-        debug_info.append(f"after feature eng: {df.shape}, target={target}")
+        debug_info.append(f"after feature eng: {df.shape}, targets={causal_targets}")
 
         if len(df) >= 10:
             discovery = CausalDiscovery(max_lag=3, significance_level=0.05)
-            result = discovery.run(df, target=target)
-            links = result.links
+            estimator = EffectEstimator()
 
-            if links:
-                estimator = EffectEstimator()
-                for link in links:
-                    if link.source == target:
+            for t in causal_targets:
+                result = discovery.run(df, target=t)
+                for link in result.links:
+                    link_key = (link.source, link.target, link.lag)
+                    if link_key in seen_links:
                         continue
-                    effect = estimator.estimate(df=df, link=link, common_causes=[])
-                    effects.append(effect)
+                    seen_links.add(link_key)
+                    links.append(link)
+                    if link.source != t:
+                        effect = estimator.estimate(df=df, link=link, common_causes=[])
+                        effects.append(effect)
 
     store["has_analysis"] = True
     df = df.fillna(0)
+
+    # Compute extra insights for richer dashboard
+    insights = _compute_insights(df)
 
     return templates.TemplateResponse(request=request, name="results.html", context={
         "df": df,
@@ -536,6 +541,7 @@ def _do_analyze(request: Request, store: dict, token: str):
         "date_start": df.index[0].strftime("%Y-%m-%d") if not df.empty else "",
         "date_end": df.index[-1].strftime("%Y-%m-%d") if not df.empty else "",
         "debug_info": debug_info,
+        "insights": insights,
     })
 
 
@@ -545,6 +551,59 @@ def results(request: Request):
     if not store.get("has_analysis"):
         return RedirectResponse("/")
     return templates.TemplateResponse(request=request, name="dashboard.html", context={"has_data": True})
+
+
+def _compute_insights(df: pd.DataFrame) -> dict:
+    """Compute derived insights for the dashboard: correlations, day-of-week patterns, trends."""
+    import numpy as np
+
+    insights = {}
+
+    # Correlation matrix of core metrics
+    core_cols = [c for c in ["recovery_score", "strain", "hrv_rmssd", "total_sleep_minutes",
+                             "resting_hr", "kilojoule", "sleep_efficiency", "caffeine",
+                             "alcohol", "stress", "respiratory_rate", "spo2"] if c in df.columns]
+    if len(core_cols) >= 3:
+        corr = df[core_cols].corr()
+        insights["corr_labels"] = [c.replace("_", " ").title() for c in core_cols]
+        insights["corr_matrix"] = corr.values.tolist()
+
+    # Day-of-week averages
+    if hasattr(df.index, 'dayofweek'):
+        dow_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        dow_data = {}
+        for col in ["recovery_score", "strain", "total_sleep_minutes", "hrv_rmssd"]:
+            if col in df.columns:
+                avgs = df.groupby(df.index.dayofweek)[col].mean()
+                dow_data[col] = [float(avgs.get(i, 0)) for i in range(7)]
+        if dow_data:
+            insights["dow_names"] = dow_names
+            insights["dow_data"] = dow_data
+
+    # Linear trend (slope) for key metrics
+    trends = {}
+    x = np.arange(len(df))
+    for col in ["recovery_score", "hrv_rmssd", "strain", "resting_hr"]:
+        if col in df.columns and len(df) >= 7:
+            y = df[col].values.astype(float)
+            mask = ~np.isnan(y) & (y != 0)
+            if mask.sum() >= 7:
+                slope = np.polyfit(x[mask], y[mask], 1)[0]
+                trends[col] = {"slope_per_week": float(slope * 7), "direction": "up" if slope > 0 else "down"}
+    if trends:
+        insights["trends"] = trends
+
+    # Lagged correlation: yesterday's strain vs today's recovery
+    if "strain" in df.columns and "recovery_score" in df.columns:
+        prev_strain = df["strain"].shift(1)
+        valid = prev_strain.notna() & df["recovery_score"].notna()
+        if valid.sum() >= 10:
+            insights["lag_strain_recovery"] = {
+                "prev_strain": prev_strain[valid].tolist(),
+                "recovery": df["recovery_score"][valid].tolist(),
+            }
+
+    return insights
 
 
 def _try_fetch(url: str, params: dict, headers: dict, debug_info: list, label: str) -> list[dict]:
