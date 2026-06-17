@@ -26,7 +26,7 @@ import pandas as pd
 WHOOP_AUTH_URL = "https://api.prod.whoop.com/oauth/oauth2/auth"
 WHOOP_TOKEN_URL = "https://api.prod.whoop.com/oauth/oauth2/token"
 WHOOP_API_BASE = "https://api.prod.whoop.com/developer"
-SCOPES = "read:recovery read:cycles read:sleep read:workout read:profile read:body_measurement read:journal"
+SCOPES = "read:recovery read:cycles read:sleep read:workout read:profile read:body_measurement"
 
 # Server-side session store (avoids cookie size limits)
 _sessions: dict[str, dict] = {}
