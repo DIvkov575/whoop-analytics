@@ -12,8 +12,7 @@ from whoop_analytics.pipeline.ingest import IngestPipeline
 from whoop_analytics.pipeline.transform import build_daily_dataset
 from whoop_analytics.pipeline.features import add_lag_features, add_rolling_features
 from whoop_analytics.analysis.discovery import CausalDiscovery
-from whoop_analytics.analysis.estimation import EffectEstimator, EffectResult
-from whoop_analytics.report.generator import AnalysisReport, ReportGenerator
+from whoop_analytics.analysis.estimation import EffectEstimator
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -24,21 +23,15 @@ def main(argv: list[str] | None = None) -> int:
     ingest_parser.add_argument("--days", type=int, default=180, help="Days of history to fetch")
 
     analyze_parser = subparsers.add_parser("analyze", help="Run causal analysis")
-    analyze_parser.add_argument("--target", default="brain_fog", help="Target variable")
+    analyze_parser.add_argument("--target", default=None, help="Target variable (auto-selects if omitted)")
     analyze_parser.add_argument("--max-lag", type=int, default=3, help="Maximum lag in days")
     analyze_parser.add_argument("--alpha", type=float, default=0.05, help="Significance level")
 
-    report_parser = subparsers.add_parser("report", help="Generate report from latest analysis")
-
-    full_parser = subparsers.add_parser("run", help="Full pipeline: ingest → analyze → report")
+    full_parser = subparsers.add_parser("run", help="Full pipeline: ingest → analyze")
     full_parser.add_argument("--days", type=int, default=180)
-    full_parser.add_argument("--target", default="brain_fog")
+    full_parser.add_argument("--target", default=None)
     full_parser.add_argument("--max-lag", type=int, default=3)
-    full_parser.add_argument("--alpha", type=float, default=0.05, help="Significance level")
-
-    web_parser = subparsers.add_parser("web", help="Launch web app")
-    web_parser.add_argument("--port", type=int, default=8000)
-    web_parser.add_argument("--host", default="0.0.0.0")
+    full_parser.add_argument("--alpha", type=float, default=0.05)
 
     args = parser.parse_args(argv)
 
@@ -46,17 +39,12 @@ def main(argv: list[str] | None = None) -> int:
         parser.print_help()
         return 0
 
-    if args.command == "web":
-        return _cmd_web(args.host, args.port)
-
     settings = Settings.from_env()
 
     if args.command == "ingest":
         return _cmd_ingest(settings, args.days)
     elif args.command == "analyze":
         return _cmd_analyze(settings, args.target, args.max_lag, args.alpha)
-    elif args.command == "report":
-        return _cmd_report(settings)
     elif args.command == "run":
         return _cmd_run(settings, args.days, args.target, args.max_lag, args.alpha)
 
@@ -82,7 +70,7 @@ def _cmd_ingest(settings: Settings, days: int) -> int:
     return 0
 
 
-def _cmd_analyze(settings: Settings, target: str, max_lag: int, alpha: float) -> int:
+def _cmd_analyze(settings: Settings, target: str | None, max_lag: int, alpha: float) -> int:
     print("Building daily dataset...")
     df = build_daily_dataset(settings.data_dir)
 
@@ -90,86 +78,47 @@ def _cmd_analyze(settings: Settings, target: str, max_lag: int, alpha: float) ->
         print("No data found. Run 'ingest' first.", file=sys.stderr)
         return 1
 
+    # Auto-select target
+    if not target:
+        for candidate in ["hrv_rmssd", "recovery_score", "strain", "sleep_efficiency"]:
+            if candidate in df.columns:
+                target = candidate
+                break
+    if not target:
+        target = df.columns[0]
+
     feature_cols = [c for c in df.columns if c != target]
     df = add_lag_features(df, columns=feature_cols, lags=[1, 2])
     df = add_rolling_features(df, columns=feature_cols, windows=[3, 7])
     df = df.dropna()
 
-    print(f"Running causal discovery (target={target}, max_lag={max_lag})...")
+    print(f"Running causal discovery (n={len(df)}, target={target}, max_lag={max_lag}, alpha={alpha})...")
     discovery = CausalDiscovery(max_lag=max_lag, significance_level=alpha)
     result = discovery.run(df, target=target)
 
-    print(f"Found {len(result.links)} causal links.")
+    print(f"\nFound {len(result.links)} causal links:")
     for link in result.links:
-        print(f"  {link.source} → {link.target} (lag={link.lag}, strength={link.strength:.3f})")
+        print(f"  {link.source} → {link.target} (lag={link.lag}, r={link.strength:.3f}, p={link.p_value:.4f})")
 
-    return 0
-
-
-def _cmd_report(settings: Settings) -> int:
-    print("Generating report...")
-    print("Report generation requires running 'run' command for full pipeline.")
-    return 0
-
-
-def _cmd_run(settings: Settings, days: int, target: str, max_lag: int, alpha: float = 0.05) -> int:
-    ret = _cmd_ingest(settings, days)
-    if ret != 0:
-        return ret
-
-    print("\nBuilding daily dataset...")
-    df = build_daily_dataset(settings.data_dir)
-
-    if df.empty:
-        print("No data after ingestion.", file=sys.stderr)
-        return 1
-
-    feature_cols = [c for c in df.columns if c != target]
-    df = add_lag_features(df, columns=feature_cols, lags=[1, 2])
-    df = add_rolling_features(df, columns=feature_cols, windows=[3, 7])
-    df = df.dropna()
-
-    if len(df) < 30:
-        print(f"Only {len(df)} observations after feature engineering. Need at least 30.", file=sys.stderr)
-        return 1
-
-    print(f"\nRunning causal discovery (n={len(df)}, target={target}, max_lag={max_lag})...")
-    discovery = CausalDiscovery(max_lag=max_lag, significance_level=alpha)
-    disc_result = discovery.run(df, target=target)
-
-    print(f"Found {len(disc_result.links)} causal links.")
-
-    effects = []
-    if disc_result.links:
-        print("\nEstimating causal effects...")
+    if result.links:
+        print("\nEstimating effect sizes...")
         estimator = EffectEstimator()
-        for link in disc_result.links:
+        for link in result.links:
             if link.source == target:
                 continue
             effect = estimator.estimate(df=df, link=link, common_causes=[])
-            effects.append(effect)
-
-    report = AnalysisReport(
-        generated_date=date.today(),
-        data_start=df.index[0].date(),
-        data_end=df.index[-1].date(),
-        n_observations=len(df),
-        causal_links=disc_result.links,
-        effects=effects,
-    )
-
-    generator = ReportGenerator()
-    report_path = settings.data_dir / "reports" / f"report-{date.today().isoformat()}.md"
-    generator.save(report, report_path)
-    print(f"\nReport saved to: {report_path}")
+            robust = "ROBUST" if effect.refutation_passed else "uncertain"
+            print(f"  {effect.source} → {effect.target}: ATE={effect.ate:.4f} [{robust}]")
 
     return 0
 
 
-def _cmd_web(host: str, port: int) -> int:
-    import uvicorn
-    uvicorn.run("whoop_analytics.web.app:app", host=host, port=port, reload=False)
-    return 0
+def _cmd_run(settings: Settings, days: int, target: str | None, max_lag: int, alpha: float) -> int:
+    ret = _cmd_ingest(settings, days)
+    if ret != 0:
+        return ret
+    print()
+    return _cmd_analyze(settings, target, max_lag, alpha)
 
 
 if __name__ == "__main__":

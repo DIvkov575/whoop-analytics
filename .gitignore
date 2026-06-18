@@ -6,9 +6,6 @@ build/
 .venv/
 venv/
 .env
-data/raw/
-data/processed/
+data/
 *.parquet
 .pytest_cache/
-.streamlit/secrets.toml
-password.txt
