@@ -1,1 +1,0 @@
-"""Whoop API client package."""
