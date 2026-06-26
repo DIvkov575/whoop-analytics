@@ -1,6 +1,11 @@
 .env
-data/
+# Ignore all raw/plaintext data (personal health data — never commit unencrypted)
+data/*
+data/raw/
 *.parquet
+*.csv
+# ...but DO allow the password-encrypted export archive to be committed
+!data/whoop_export.tar.gz.gpg
 .ipynb_checkpoints/
 .venv/
 __pycache__/
